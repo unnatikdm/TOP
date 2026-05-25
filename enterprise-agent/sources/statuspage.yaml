@@ -1,0 +1,18 @@
+name: statuspage
+version: 0.1.0
+dsl_version: 3
+backend: http
+inputs:
+  VENDOR_STATUS_URL:
+    kind: variable
+    default: "https://status.stripe.com/api/v2/incidents/unresolved.json"
+base_url: "{{input.VENDOR_STATUS_URL}}"
+tables:
+  - name: incidents
+    request:
+      method: GET
+    columns:
+      - name: name
+        type: Utf8
+      - name: status
+        type: Utf8
