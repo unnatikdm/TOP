@@ -1,65 +1,91 @@
-# Coral Enterprise Agent
+# 🌌 Team Optimization Portal (TOP)
 
-A premium, high-performance, and resilient developer intelligence workspace designed to convert complex, jargon-heavy developer database rows, stack trace logs, and pipeline events into structured, plain-English summaries. Powered by the Coral query engine inside WSL and a robust local/cloud LLM orchestration layer.
+Welcome to the **Team Optimization Portal (TOP)**—a state-of-the-art, premium developer intelligence and operations workspace. 
 
----
+TOP is designed to convert complex, jargon-heavy database tables, dense application crash logs (stack traces), and developer conversations into **clear, structured, plain-English summaries**. By bridging the gap between high-level management and low-level source code, TOP empowers entire teams to stay aligned without drowning in technical noise.
 
-## 🚀 Key Features & Highlights
-
-### 1. Resilient Triple-Tier AI Summarizer Agent
-Translates dense, verbose developer tracebacks, git commits, and raw database rows into structured plain-English bullets (Overview, Key Impacts, Action Items) for managers and developers:
-* **Tier 1 (Local Ollama):** Queries your local `llama3.2` instance offline for total data privacy.
-* **Tier 2 (Cloud AI):** If local Ollama is offline or loading, it instantly routes to a keyless cloud AI model using spoofed browser headers to bypass rate-limiting Cloudflare firewalls.
-* **Tier 3 (Local Heuristics):** If fully offline, a Python NLP regex translation engine extracts and formats summaries—**working 100% of the time, offline and forever.**
-
-### 2. Interactive Dual-Tab Accordion Drawers
-* Cards with multi-line logs render a **"View In-depth Analysis"** drawer.
-* Clicking the drawer fetches the summary asynchronously (keeping initial page rendering under 20ms) and unlocks two interactive tabs:
-  1. **`✨ AI Agent Explanation`** (parsed markdown bullets, bold headers, and custom JSX typography).
-  2. **`💻 Raw Developer Logs`** (unmodified, full-fidelity raw logs, stack traces, and database tables).
-
-### 3. Global Persistent Parameter URL Input
-* Eliminates the friction of copy-pasting your target repository URL repeatedly when moving between tools.
-* The URL input is **global and shared across all dashboard features**.
-* Switching tabs retains the target repository URL, while perfectly caching each tool's executed card outputs, expand states, and toggled tabs in the background.
-
-### 4. Premium Developer Cards & Metric Pills Grid
-* Replaced boring raw SQL database tables with a responsive CSS grid of beautiful glassmorphic cards.
-* **Clickable Sources:** Card titles are hyperlinked directly to their respective GitHub commits, PRs, or issue pages.
-* **Metric Pills:** Evaluates log events in the browser to display vibrant metric pills for reviews 💬, CI runs 🔄, comment dates 📅, Slack mentions, and Jira links.
-* **Layout Protection:** Numerical values are auto-formatted, internal database tags are filtered out, and badges with values exceeding 60 characters are automatically truncated to keep cards perfectly aligned.
-
-### 5. Fail-Fast 3-Second Timeout & Direct REST Redirection
-* SQL queries against large repositories inside WSL can trigger gateway timeouts.
-* We implemented a **fail-fast 3-second limit** on all WSL Coral SQL executions.
-* If Coral takes longer than 3 seconds or fails, the backend instantly intercepts the query and runs direct REST API fetches to GitHub in under 100ms.
-* Mapped REST payloads to support both raw REST keys and full database schemas (`number`, `sha`, `user__login`, etc.) to prevent frontend crashes, and resolved silent query case-sensitivity match bugs.
+TOP is powered by a high-speed Python FastAPI backend, a responsive React Vite frontend, a secure local Linux (WSL) configuration lifecycle, and a resilient multi-tier AI summary engine.
 
 ---
 
-## 🔌 Architecture Overview
+## 🚀 Interactive Tour: Features Explained in Simple English
+
+Here is a guide to every powerful feature packed into your TOP dashboard:
+
+### 1. 🔍 Unified "Debug Assistant" (Cross-Platform Search)
+* **What it is:** A unified search engine for your company’s developer history—like Google Search, but for your internal codebases and operations.
+* **How it works:** You type in a query (e.g., `"PostgreSQL connection pool exhausted"`), and TOP concurrently queries four completely different sources:
+  1. **Sentry** (for application exceptions and crashes).
+  2. **Slack** (for developer discussions and group threads).
+  3. **Jira** (for engineering tasks and tickets).
+  4. **GitHub** (for commits, pull requests, and codebase issues).
+* **The Magic:** Instead of searching four separate browser tabs, you see all matching events in a unified, beautifully color-coded timeline.
+
+### 2. 🧠 Resilient Triple-Tier AI Summarizer Agent
+* **What it is:** A translation engine that reads cryptic logs (like `NullPointerException` stack traces) and converts them into simple, structured markdown bullet points.
+* **How it works:** It displays summaries in three neat buckets:
+  * **Overview:** What happened in plain terms.
+  * **Key Impacts:** Who or what this issue affects (e.g., *"Users cannot log in"*).
+  * **Recommended Action Items:** The exact steps to take next.
+* **Triple-Tier Reliability:**
+  * **Tier 1 (Private Local LLM):** Tries to run your local offline Ollama (`llama3.2`) model for complete data privacy.
+  * **Tier 2 (Cloud Fallback AI):** If local Ollama is offline or loading, it instantly redirects to keyless cloud AI with built-in bypass firewalls.
+  * **Tier 3 (Local NLP Heuristics):** If your computer is entirely disconnected from the Internet, a built-in Python pattern-matching script takes over and structures the output. **It is guaranteed to work 100% of the time, offline and forever.**
+
+### 3. 🎨 Interactive Dual-Tab Accordion Cards
+* **What it is:** An interactive preview drawer attached to every log or search match.
+* **How it works:** When you click **"View In-depth Analysis"** on a developer card, the AI explanation loads instantly in the background. Inside, you can switch seamlessly between two tabs:
+  * **`✨ AI Agent Explanation`** (default): Reads the plain-English translation.
+  * **`💻 Raw Developer Logs`**: Switch on-demand to see the unmodified, full-fidelity code, stack trace, or database table row.
+* **State Preservation:** Every single parameter input, expand state, card output, and selected tab is cached in memory. If you toggle between different tools in the sidebar, your exact state is perfectly preserved!
+
+### 4. 🗂️ Database Explorer (Ellipsis Truncation)
+* **What it is:** A sidebar schema browser that lists all tables and columns in your active database.
+* **The Visual Fix:** Extremely long database table names (such as `activity_list_repos_watched_by_user`) used to spill out of their cards and break the layout. 
+* **How it works now:** Long names are now beautifully truncated with an ellipsis (`...`). Hovering your cursor over the table name triggers a clean browser-native tooltip displaying the full name instantly.
+
+### 5. 🏷️ Premium Dark "Flyout" Tooltips (Unclipped!)
+* **What it is:** Hover tips on sidebar items that explain what each action does.
+* **The Visual Fix:** Tooltips used to get chopped off by the browser because the sidebar was forced to scroll vertically. 
+* **How it works now:** The sidebar layout has been updated to support standard overflow visibility, and we restored gorgeous dark slate (`#0f172a`) tooltip labels. They now float perfectly outside the sidebar boundary and include a custom pointer arrow directing back to the navigation tab.
+
+### 6. 🔗 Global Shared Repository URL Input
+* **What it is:** A shared parameter box that stays with you across the application.
+* **How it works:** Enter a repository URL (or scope parameter) once, and it instantly propagates to all other tools. You can navigate between *Fix Build*, *PR Reaper*, and *Timeline* without the friction of copy-pasting the URL again and again.
+
+### 7. ⚡ Fail-Fast 3-Second Timeout & Direct REST Redirection
+* **What it is:** A guardrail that keeps your dashboard fast and prevents loading spinner freezes.
+* **How it works:** Standard SQL database queries on massive codebases can hang and trigger server timeouts. TOP sets a fail-fast **3-second limit**. If the query doesn't finish, TOP instantly intercepts the operation and fetches the data using direct cloud REST APIs in under **100 milliseconds**!
+
+---
+
+## 🔌 Architecture Diagram
 
 ```mermaid
 graph TD
     A[Vite React Frontend] <--->|HTTP REST / CORS| B[FastAPI Python Backend]
     B <--->|3s Timeout SQL Queries| C[WSL Ubuntu-24.04: Coral CLI]
-    B <--->|Direct REST Fallbacks| D[GitHub & Jira APIs]
+    B <--->|Direct REST Fallbacks| D[GitHub, Jira, & Sentry APIs]
     B <--->|Tier 1: Private LLM| E[Local Ollama: llama3.2]
     B <--->|Tier 2: Cloud LLM| F[Pollinations Cloud AI]
 ```
 
 ---
 
-## ⚙️ Service Connection Lifecycle (Setup Tab)
+## 🔒 Service Connections & Privacy (Setup Tab)
 
-The **Setup** tab allows you to dynamically hook up external integrations. Here is how a connection works:
-1. **Input:** You enter your token (along with extra fields like Jira Base URL/Email or Sentry Org Slug) and click **Connect**.
-2. **Browser Persistence:** Tokens are securely cached in the browser's secure `localStorage` (e.g. `coral_github_token` and `coral_sentry_org`), keeping your session active across page reloads.
-3. **WSL Sync:** The backend receives the token and automatically executes a subprocess inside your WSL Ubuntu-24.04 instance to configure Coral:
+### "Will my credentials be leaked if I publish this project?"
+**No. Your personal tokens and base URLs are 100% private and secure.**
+
+Here is the exact lifecycle of how your connections are managed:
+1. **Input:** You paste your personal access token (along with parameters like Jira URL or Sentry Org) and click **Connect**.
+2. **Browser Storage:** The values are securely cached locally in your browser's private `localStorage` (so they remain saved even if you close the tab).
+3. **WSL Environment Sync:** The backend receives your token and executes a secure command inside your local Windows Subsystem for Linux (WSL) container to bind the credential to the local Coral engine:
    ```bash
    wsl -d Ubuntu-24.04 -- bash -c "GITHUB_TOKEN='your_token' /root/.local/bin/coral source add github"
    ```
-4. **Dual-Sync Boot:** On startup, the Python server reads existing configs directly from the WSL filesystem, and the frontend syncs browser `localStorage` tokens upon mounting.
+4. **Local Hard Drive Only:** The configuration keys are written inside `/root/.config/coral/` in your private Linux environment. They do **not** exist in the project files.
+5. **Publishing Safety:** If you share this project folder on GitHub or deploy it to a public hosting platform, **none of your keys or tokens are in the code**. Other developers who download the app will simply see a blank "Setup" page, and the application will load keys from *their* local WSL machine.
 
 ---
 
@@ -69,29 +95,32 @@ The **Setup** tab allows you to dynamically hook up external integrations. Here 
 * **Python 3.10+** (with `fastapi`, `uvicorn`, `pydantic`, `jinja2`)
 * **Node.js 18+** & **npm**
 * **WSL Ubuntu-24.04** with the Coral CLI installed
-* **Ollama** running locally (optional, but recommended for offline AI summaries)
+* **Ollama** running locally (optional, for local private AI summaries)
 
 ### Running the Application
 
-1. **Start the Backend Server:**
-   Navigate to the backend directory and run:
-   ```bash
-   cd enterprise-agent/backend
-   python main.py
-   ```
-   The FastAPI server will start listening on `http://localhost:8000`.
+TOP includes a convenient launcher script that fires up both the frontend and backend in unified windows:
 
-2. **Start the Frontend Development Server:**
-   Navigate to the frontend directory and run:
-   ```bash
-   cd enterprise-agent/frontend
-   npm run dev
-   ```
-   Open `http://localhost:5173` in your browser to explore the dashboard!
+1. **Double-click `run_all.bat`** in the project root folder.
+2. The FastAPI server will fire up on `http://localhost:8000`.
+3. The React Vite development server will fire up on `http://localhost:5173`.
+4. Open `http://localhost:5173` in your web browser to start optimizing your team's workflow!
 
-3. **Verify Integrations & Run Tests:**
-   You can test the PR Reaper logic and credentials loading directly from the command line using the standalone test script:
-   ```bash
-   cd enterprise-agent/backend
-   python test_reaper.py
-   ```
+### Manual CLI commands
+If you prefer running the components individually in your terminal:
+
+* **Start Backend:**
+  ```bash
+  cd backend
+  python main.py
+  ```
+* **Start Frontend:**
+  ```bash
+  cd frontend
+  npm run dev
+  ```
+* **Run Verification Tests:**
+  ```bash
+  cd backend
+  python test_reaper.py
+  ```
