@@ -694,7 +694,7 @@ function App() {
           flex-direction: column;
           gap: 24px;
           height: 100%;
-          overflow-y: auto;
+          overflow: visible;
           position: relative;
         }
 
@@ -735,6 +735,40 @@ function App() {
         .nav-item.active {
           background-color: var(--accent);
           color: white;
+        }
+
+        .nav-item:hover::after {
+          content: attr(data-tooltip);
+          position: absolute;
+          left: 100%;
+          top: 50%;
+          transform: translateY(-50%);
+          margin-left: 12px;
+          background: #0f172a;
+          color: #f8fafc;
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          padding: 6px 12px;
+          border-radius: 6px;
+          font-size: 11px;
+          white-space: nowrap;
+          z-index: 1000;
+          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.5);
+          pointer-events: none;
+          font-weight: 500;
+        }
+
+        .nav-item:hover::before {
+          content: '';
+          position: absolute;
+          left: 100%;
+          top: 50%;
+          transform: translateY(-50%);
+          margin-left: 6px;
+          border-width: 5px;
+          border-style: solid;
+          border-color: transparent #0f172a transparent transparent;
+          z-index: 1000;
+          pointer-events: none;
         }
 
 
@@ -1217,7 +1251,7 @@ function App() {
           <div
             className={`nav-item ${view === 'dashboard' ? 'active' : ''}`}
             onClick={() => setView('dashboard')}
-            title="Main tools for developers."
+            data-tooltip="Main tools for developers."
           >
             <LayoutDashboard size={18} />
             <span>Dashboard</span>
@@ -1225,7 +1259,7 @@ function App() {
           <div
             className={`nav-item ${view === 'database' ? 'active' : ''}`}
             onClick={() => setView('database')}
-            title="Write and run custom SQL queries via Coral."
+            data-tooltip="Write and run custom SQL queries via Coral."
           >
             <TerminalSquare size={18} />
             <span>Query Console</span>
@@ -1233,7 +1267,7 @@ function App() {
           <div
             className={`nav-item ${view === 'debug_assistant' ? 'active' : ''}`}
             onClick={() => setView('debug_assistant')}
-            title="Search cross-platform debug history."
+            data-tooltip="Search cross-platform debug history."
           >
             <HelpCircle size={18} />
             <span>Debug Assistant</span>
@@ -1241,7 +1275,7 @@ function App() {
           <div
             className={`nav-item ${view === 'setup' ? 'active' : ''}`}
             onClick={() => setView('setup')}
-            title="Configure your API keys."
+            data-tooltip="Configure your API keys."
           >
             <Settings size={18} />
             <span>Setup</span>
@@ -1258,7 +1292,7 @@ function App() {
                 key={tool.id}
                 className={`nav-item ${activeTool.id === tool.id ? 'active' : ''}`}
                 onClick={() => handleToolSwitch(tool)}
-                title={tool.tooltip}
+                data-tooltip={tool.tooltip}
               >
                 <tool.icon size={18} />
                 <span>{tool.name}</span>
