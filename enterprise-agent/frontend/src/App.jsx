@@ -1918,11 +1918,18 @@ function App() {
             <header>
               <div className="nav-container">
                 <a href="#" className="logo" onClick={(e) => { e.preventDefault(); setView('landing'); }}
-                  style={{ display: 'flex', alignItems: 'center', gap: '2px', textDecoration: 'none' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}
                 >
-                  <span style={{ fontSize: '24px', fontWeight: '900', fontFamily: "'Outfit', 'Inter', sans-serif", color: '#e2e8f0', lineHeight: '1' }}>T</span>
-                  <img src="/logo_tree.png" alt="O" style={{ width: '28px', height: '28px', display: 'block' }} />
-                  <span style={{ fontSize: '24px', fontWeight: '900', fontFamily: "'Outfit', 'Inter', sans-serif", color: '#e2e8f0', lineHeight: '1' }}>P</span>
+                  {/* T🌳P logomark */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
+                    <span style={{ fontSize: '22px', fontWeight: '900', fontFamily: "'Outfit', 'Inter', sans-serif", color: '#e2e8f0', lineHeight: '1' }}>T</span>
+                    <img src="/logo_tree.png" alt="O" style={{ width: '24px', height: '24px', display: 'block' }} />
+                    <span style={{ fontSize: '22px', fontWeight: '900', fontFamily: "'Outfit', 'Inter', sans-serif", color: '#e2e8f0', lineHeight: '1' }}>P</span>
+                  </div>
+                  {/* Full name */}
+                  <span style={{ fontSize: '13px', fontWeight: '700', fontFamily: "'Outfit', 'Inter', sans-serif", color: '#e2e8f0', letterSpacing: '0.02em' }}>
+                    TEAM OPTIMIZATION PORTAL <span style={{ background: 'linear-gradient(135deg, #6366f1 0%, #3b82f6 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>(TOP)</span>
+                  </span>
                 </a>
                 <nav className="nav-links">
                   <a href="#features" className="nav-link">Coral Core</a>
