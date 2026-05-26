@@ -1233,7 +1233,7 @@ function App() {
 
         .landing-scope .hero-desc {
           font-size: 18px !important;
-          color: var(--text-dim) !important;
+          color: #334155 !important;
           margin-bottom: 36px !important;
           max-width: 540px !important;
         }
@@ -1466,21 +1466,25 @@ function App() {
         }
 
         .landing-scope .terminal-prompt {
-          color: var(--accent) !important;
+          color: #818cf8 !important;
           user-select: none !important;
         }
 
         .landing-scope .terminal-output {
-          color: var(--text) !important;
+          color: #a7f3d0 !important;
           white-space: pre-wrap !important;
           animation: fadeIn 0.3s forwards !important;
+        }
+
+        .landing-scope #terminalResponse .terminal-output {
+          color: #cbd5e1 !important;
         }
 
         .landing-scope .terminal-loader {
           display: flex !important;
           align-items: center !important;
           gap: 8px !important;
-          color: var(--accent) !important;
+          color: #818cf8 !important;
           font-style: italic !important;
         }
 
@@ -1559,7 +1563,7 @@ function App() {
 
         .landing-scope .pulse-line {
           position: absolute !important;
-          background-color: rgba(99, 102, 241, 0.08) !important;
+          background-color: rgba(99, 102, 241, 0.22) !important;
           z-index: 1 !important;
         }
 
@@ -1735,6 +1739,10 @@ function App() {
           -webkit-text-fill-color: transparent !important;
         }
 
+        [data-theme='dark'] .landing-scope .hero-desc {
+          color: var(--text-dim) !important;
+        }
+
         [data-theme='dark'] .landing-scope .mockup-container {
           box-shadow: 0 20px 50px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1) !important;
         }
@@ -1787,7 +1795,7 @@ function App() {
         }
 
         [data-theme='dark'] .landing-scope .pulse-line {
-          background-color: rgba(99, 102, 241, 0.15) !important;
+          background-color: rgba(99, 102, 241, 0.25) !important;
         }
 
         [data-theme='dark'] .landing-scope .chart-bar-container {
@@ -2017,7 +2025,7 @@ function App() {
                           <span> Compiling query...</span>
                         </div>
                       ) : (
-                        <span className="terminal-output" style={{ color: 'var(--text-dim)' }}>
+                        <span className="terminal-output">
                           {terminalOutput}
                         </span>
                       )}
