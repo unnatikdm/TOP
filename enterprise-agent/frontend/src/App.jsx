@@ -1790,10 +1790,11 @@ function App() {
               <div className="hero-layout">
                 <div>
                   <h1 className="hero-title">
-                    Accelerate Engineering Workflows with <span>TOP</span>
+                    Unleash Developer Intelligence with <span>TOP</span>. <br />
+                    Powered by <span>Coral</span>.
                   </h1>
                   <p className="hero-desc">
-                    The ultimate developer mission control portal. TOP consolidates Sentry, Slack, GitHub, and Jira using standard SQL queries and an advanced multi-tier offline AI intelligence layer.
+                    The ultimate developer mission control portal. TOP consolidates Sentry, Slack, GitHub, and Jira using Coral's unified SQL query engine and an advanced multi-tier offline AI intelligence layer.
                   </p>
                   <div className="hero-ctas">
                     <button onClick={() => setView('dashboard')} className="btn btn-primary">Launch Dashboard</button>
@@ -2003,7 +2004,7 @@ function App() {
 
             {/* Footer */}
             <footer>
-              <p>© 2026 Team Optimization Portal (TOP). All rights reserved. Powered by the Coral query framework.</p>
+              <p>© 2026 Team Optimization Portal (TOP). All rights reserved. Enjoy Your Work with TOP.</p>
             </footer>
           </div>
         ) : view === 'dashboard' ? (
