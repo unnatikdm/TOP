@@ -23,7 +23,8 @@ import {
   Sun,
   Moon,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Loader2
 } from 'lucide-react';
 
 const getOutputBreakdown = (message, title, category) => {
@@ -2186,7 +2187,7 @@ function App() {
                   />
                 </div>
                 <button className="btn btn-primary" onClick={executeTool} disabled={loading}>
-                  {loading ? <Play className="spin" size={18} /> : <Play size={18} />}
+                  {loading ? <Loader2 className="spin" size={18} /> : <Play size={18} />}
                   {loading ? 'RUNNING...' : 'EXECUTE'}
                 </button>
               </div>
@@ -2195,7 +2196,7 @@ function App() {
             <section>
               {loading ? (
                 <div style={{ textAlign: 'center', padding: '40px' }}>
-                  <Database size={32} className="spin" style={{ color: 'var(--accent)', marginBottom: '12px' }} />
+                  <Loader2 size={32} className="spin" style={{ color: 'var(--accent)', marginBottom: '12px' }} />
                   <p style={{ fontSize: '14px', color: 'var(--text-dim)' }}>Fetching data from Coral...</p>
                 </div>
               ) : results ? (
@@ -2574,7 +2575,7 @@ function App() {
                           <div style={{ marginTop: '10px', paddingLeft: '12px', borderLeft: '1px dashed var(--border)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                             {isLoading ? (
                               <div style={{ fontSize: '11px', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 0' }}>
-                                <Zap className="spin" size={10} /> Loading columns...
+                                <Loader2 className="spin" size={10} /> Loading columns...
                               </div>
                             ) : columns.length > 0 ? columns.map((col, idx) => (
                               <div 
@@ -2669,7 +2670,7 @@ function App() {
                       disabled={queryLoading || !sqlQuery.trim()}
                       style={{ padding: '10px 24px', fontSize: '14px', boxShadow: '0 4px 14px rgba(59, 130, 246, 0.4)' }}
                     >
-                      {queryLoading ? <Zap className="spin" size={16} /> : <Play size={16} />}
+                      {queryLoading ? <Loader2 className="spin" size={16} /> : <Play size={16} />}
                       {queryLoading ? 'RUNNING QUERY...' : 'RUN QUERY'}
                     </button>
                   </div>
@@ -2690,7 +2691,7 @@ function App() {
 
                   {queryLoading ? (
                     <div style={{ textAlign: 'center', padding: '60px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
-                      <Database size={32} className="spin" style={{ color: 'var(--accent)' }} />
+                      <Loader2 size={32} className="spin" style={{ color: 'var(--accent)' }} />
                       <p className="pulse" style={{ fontSize: '14px', color: 'var(--accent)', fontWeight: '600' }}>
                         WSL Coral subprocess executing query...
                       </p>
