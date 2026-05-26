@@ -1,6 +1,11 @@
 # 🚀 Team Optimization Portal (TOP)
 ### *Powered by the Coral Query Engine*
 
+<p align="center">
+  <img src="enterprise-agent/docs/screenshot1.png" width="49%" />
+  <img src="enterprise-agent/docs/screenshot2.png" width="49%" />
+</p>
+
 Welcome to the **Team Optimization Portal (TOP)**—an enterprise-grade Developer Intelligence & Incident Response Workspace. TOP is engineered to convert complex, jargon-heavy developer database rows, stack trace logs, and pipeline events into highly structured, plain-English summaries for developers and managers alike.
 
 At the core of TOP's speed, unified data modeling, and performance lies the **Coral Query Engine**—a revolutionary CLI-driven SQL translation framework running inside WSL that treats external APIs as high-performance database schemas.
