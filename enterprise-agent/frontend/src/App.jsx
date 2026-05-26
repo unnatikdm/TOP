@@ -1812,8 +1812,43 @@ function App() {
           <button className="theme-toggle" onClick={toggleTheme}>
             {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
           </button>
-          <div className="logo" style={{ marginTop: '40px' }}>
-            <Layers size={24} /> CORAL AGENT
+          <div
+            style={{
+              marginTop: '30px',
+              cursor: 'default',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '4px',
+              width: '100%',
+              userSelect: 'none',
+            }}
+          >
+            {/* T🌳P logo */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '2px' }}>
+              <span style={{
+                fontSize: '48px', fontWeight: '900',
+                fontFamily: "'Inter', 'Outfit', sans-serif",
+                color: theme === 'dark' ? '#e2e8f0' : '#0d1b3e',
+                lineHeight: '1', display: 'flex', alignItems: 'center',
+              }}>T</span>
+              <img
+                src="/logo_tree.png"
+                alt="O"
+                style={{ width: '52px', height: '52px', display: 'block', flexShrink: 0 }}
+              />
+              <span style={{
+                fontSize: '48px', fontWeight: '900',
+                fontFamily: "'Inter', 'Outfit', sans-serif",
+                color: theme === 'dark' ? '#e2e8f0' : '#0d1b3e',
+                lineHeight: '1', display: 'flex', alignItems: 'center',
+              }}>P</span>
+            </div>
+            <p style={{
+              fontSize: '10px', fontWeight: '600',
+              textTransform: 'uppercase', letterSpacing: '0.14em',
+              color: 'var(--text-dim)', textAlign: 'center', margin: '0',
+            }}>Team Optimization Portal</p>
           </div>
 
           <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -1882,9 +1917,12 @@ function App() {
             {/* Header Nav */}
             <header>
               <div className="nav-container">
-                <a href="#" className="logo" onClick={(e) => { e.preventDefault(); setView('landing'); }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} style={{ color: '#6366f1' }}><path d="m12 3-1.912 5.886L4 9.886l5.088 1.913L10.088 19 12 13.088 13.912 19l1.000-7.199L20 9.886l-6.088-1.000L12 3Z"/></svg>
-                  TEAM OPTIMIZATION PORTAL <span>(TOP)</span>
+                <a href="#" className="logo" onClick={(e) => { e.preventDefault(); setView('landing'); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '2px', textDecoration: 'none' }}
+                >
+                  <span style={{ fontSize: '24px', fontWeight: '900', fontFamily: "'Outfit', 'Inter', sans-serif", color: '#e2e8f0', lineHeight: '1' }}>T</span>
+                  <img src="/logo_tree.png" alt="O" style={{ width: '28px', height: '28px', display: 'block' }} />
+                  <span style={{ fontSize: '24px', fontWeight: '900', fontFamily: "'Outfit', 'Inter', sans-serif", color: '#e2e8f0', lineHeight: '1' }}>P</span>
                 </a>
                 <nav className="nav-links">
                   <a href="#features" className="nav-link">Coral Core</a>
