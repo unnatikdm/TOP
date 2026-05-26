@@ -110,9 +110,9 @@ At the bottom of the sidebar is your specialized developer toolkit. Every tool r
 
 * **🌳 Collapsible Sidebar:** Features smooth slides powered by high-fidelity custom animation curves (`cubic-bezier(0.4, 0, 0.2, 1)`). Seamlessly transitions from `260px` (expanded) to a centered compact `72px` (collapsed) layout.
 * **⚡ Interactive Logo Buttons:**
-  * **Expanded Mode:** Displays a beautiful horizontal logotype image (`logo_top.jpg`) spelling out **T [Tree] P (TOP)** centered neatly, with an elegant tracking subtitle below it.
-  * **Collapsed Mode:** Transitions into a Cyan glowing **circuit tree logo** (`logo_tree.jpg`) showing a high-tech circuit tree.
-  * **Interactivity:** Hovering triggers custom scale enlargements (`scale(1.04)` and `scale(1.08)`), and clicking the logo toggles the sidebar's collapse state instantly!
+  * **Expanded Mode:** Displays the full corporate logo (`logo_top.jpg`) spelling out **T [Tree] P (TOP)** centered neatly, accompanied by a large, bold double-lined header `Team Optimization Portal` in glowing capital letters.
+  * **Collapsed Mode:** Fades into a scaled-down version of the same full corporate logo (`logo_top.jpg`) showing **T [Tree] P (TOP)** shrunk to a neat `48px` footprint with smooth shadows.
+  * **Interactivity:** Hovering triggers custom scale enlargements (`scale(1.04)` and `scale(1.08)` respectively), and clicking the logo toggles the sidebar's collapse state instantly!
 * **🏷️ Collapsed Viewport-Responsive Tooltips:** Description labels use `position: fixed` viewport escapes. When the sidebar is collapsed, the tooltips snuggily snap to the compact icons (`left: 84px` for the label and `left: 78px` for the arrow pointer) while centering vertically next to items automatically.
 * **Auto-Ellipsis Database Cards:** Extremely long table names in the Explorer are truncated (`...`) with hover title tooltips, preventing horizontal card overflows.
 * **Scrollable Navigation Sidebar:** The sidebar supports full vertical scrollbars (`overflow-y: auto`), allowing all items and tools to remain completely reachable on low screen heights.
