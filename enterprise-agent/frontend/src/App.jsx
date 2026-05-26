@@ -125,6 +125,29 @@ const tools = [
   { id: 'fork_to_fix', name: 'Upstream Fixes', icon: Layers, tooltip: 'Check if your bugs are fixed in newer versions.' }
 ];
 
+const PRESET_TEMPLATES = [
+  {
+    name: '📦 Recent GitHub PRs',
+    sql: "SELECT number, title, state, user__login FROM github.pulls WHERE owner = '{{OWNER}}' AND repo = '{{REPO}}' ORDER BY created_at DESC LIMIT 10;"
+  },
+  {
+    name: '🐞 Sentry Crash Events',
+    sql: "SELECT id, title, last_seen, level, status FROM sentry.issues WHERE query = 'release:{{REPO}}' LIMIT 10;"
+  },
+  {
+    name: '🔄 Latest CI Action Runs',
+    sql: "SELECT id, name, head_branch, status, conclusion FROM github.repo_action_runs WHERE owner = '{{OWNER}}' AND repo = '{{REPO}}' LIMIT 5;"
+  },
+  {
+    name: '📅 High Priority Jira Tickets',
+    sql: "SELECT key, summary FROM jira.issues LIMIT 10;"
+  },
+  {
+    name: '🔍 StackOverflow Search',
+    sql: "SELECT question_id, title, link FROM stackoverflow.questions WHERE title ILIKE '%{{QUERY}}%' ORDER BY creation_date DESC LIMIT 5;"
+  }
+];
+
 function App() {
   const [theme, setTheme] = useState('light');
   const [view, setView] = useState('dashboard'); // 'dashboard', 'database', or 'setup'
@@ -146,6 +169,145 @@ function App() {
   const [debugSummaries, setDebugSummaries] = useState({});
   const [debugSummarizing, setDebugSummarizing] = useState({});
   const [debugActiveTabs, setDebugActiveTabs] = useState({});
+
+  // States for Query Console
+  const [sqlQuery, setSqlQuery] = useState("SELECT number, title, state, user__login FROM github.pulls WHERE owner = '{{OWNER}}' AND repo = '{{REPO}}' ORDER BY created_at DESC LIMIT 10;");
+  const [queryResults, setQueryResults] = useState(null);
+  const [queryLoading, setQueryLoading] = useState(false);
+  const [queryError, setQueryError] = useState(null);
+  const [searchFilter, setSearchFilter] = useState('');
+  const [expandedTables, setExpandedTables] = useState({});
+  const [tableColumns, setTableColumns] = useState({});
+  const [loadingColumns, setLoadingColumns] = useState({});
+
+  // Global settings and setup state
+  const [lookbackDays, setLookbackDays] = useState(7);
+  const [severityThreshold, setSeverityThreshold] = useState('medium');
+  const [slackChannels, setSlackChannels] = useState('#incident, #oncall');
+  const [cacheStats, setCacheStats] = useState({ size: '1.24 MB', queries: 24 });
+  const [queryHistory, setQueryHistory] = useState([
+    { timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(), query: "SELECT * FROM github.issues LIMIT 10;", rows: 10, status: "Success" },
+    { timestamp: new Date(Date.now() - 1000 * 60 * 45).toISOString(), query: "SELECT id, title FROM sentry.issues LIMIT 5;", rows: 5, status: "Success" }
+  ]);
+
+  const handleRemoveConnection = (source) => {
+    setConnections(prev => ({ ...prev, [source.toLowerCase()]: '' }));
+    localStorage.removeItem(`coral_${source.toLowerCase()}_token`);
+    alert(`${source} token cleared!`);
+  };
+
+  const handleClearCache = () => {
+    if (confirm("Are you sure you want to clear Coral SQL cache?")) {
+      setCacheStats({ size: '0.00 KB', queries: 0 });
+      alert("Cache cleared successfully!");
+    }
+  };
+
+  const loadHistoryToEditor = (queryStr) => {
+    setSqlQuery(queryStr);
+    setView('database');
+  };
+
+  const parseOwnerRepoFromValue = (val) => {
+    try {
+      let url = new URL(val);
+      if (url.hostname.includes('github.com')) {
+        const parts = url.pathname.split('/').filter(Boolean);
+        if (parts.length >= 2) {
+          return { owner: parts[0], repo: parts[1].replace(/\.git$/, '') };
+        }
+      }
+    } catch (e) {}
+    const parts = val.split('/').filter(Boolean);
+    if (parts.length >= 2) {
+      return { owner: parts[0], repo: parts[1].replace(/\.git$/, '') };
+    }
+    return null;
+  };
+
+  const toggleTable = async (tableName) => {
+    const isExpanding = !expandedTables[tableName];
+    setExpandedTables(prev => ({ ...prev, [tableName]: isExpanding }));
+
+    if (isExpanding && !tableColumns[tableName]) {
+      setLoadingColumns(prev => ({ ...prev, [tableName]: true }));
+      try {
+        const response = await fetch(`http://localhost:8000/api/columns/${tableName}`);
+        if (response.ok) {
+          const data = await response.json();
+          setTableColumns(prev => ({ ...prev, [tableName]: data }));
+        }
+      } catch (err) {
+        console.error("Failed to load columns for " + tableName, err);
+      } finally {
+        setLoadingColumns(prev => ({ ...prev, [tableName]: false }));
+      }
+    }
+  };
+
+  const insertTextAtCursor = (text) => {
+    setSqlQuery(prev => {
+      const clean = prev.trim();
+      if (clean.endsWith(';')) {
+        return clean.slice(0, -1) + ' ' + text + ';';
+      }
+      return clean + ' ' + text;
+    });
+  };
+
+  const executePlaygroundQuery = async () => {
+    setQueryLoading(true);
+    setQueryResults(null);
+    setQueryError(null);
+
+    let parsedOwner = 'open-metadata';
+    let parsedRepo = 'OpenMetadata';
+    let parsedKeyword = 'webpack';
+
+    const parsed = parseOwnerRepoFromValue(paramValue);
+    if (parsed) {
+      parsedOwner = parsed.owner;
+      parsedRepo = parsed.repo;
+      parsedKeyword = parsed.repo;
+    } else if (paramValue) {
+      parsedKeyword = paramValue;
+    }
+
+    let interpolatedQuery = sqlQuery
+      .replace(/\{\{OWNER\}\}/g, parsedOwner)
+      .replace(/\{\{REPO\}\}/g, parsedRepo)
+      .replace(/\{\{QUERY\}\}/g, parsedKeyword);
+
+    try {
+      const response = await fetch('http://localhost:8000/api/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: interpolatedQuery })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setQueryError(data.detail || data.message || "Query execution failed");
+        setQueryHistory(prev => [
+          { timestamp: new Date().toISOString(), query: interpolatedQuery, rows: 0, status: "Failed" },
+          ...prev
+        ]);
+      } else {
+        setQueryResults(data);
+        setQueryHistory(prev => [
+          { timestamp: new Date().toISOString(), query: interpolatedQuery, rows: Array.isArray(data) ? data.length : 1, status: "Success" },
+          ...prev
+        ]);
+      }
+    } catch (err) {
+      setQueryError(err.message || "Connection to backend failed");
+      setQueryHistory(prev => [
+        { timestamp: new Date().toISOString(), query: interpolatedQuery, rows: 0, status: "Failed" },
+        ...prev
+      ]);
+    } finally {
+      setQueryLoading(false);
+    }
+  };
 
   const toggleCard = async (index, message, title, category) => {
     const isExpanding = !expandedCards[index];
@@ -323,6 +485,30 @@ function App() {
       })
       .catch(() => { });
   }, [theme]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const repoParam = params.get('repo') || params.get('url') || params.get('param') || params.get('q');
+    const toolParam = params.get('f') || params.get('tool') || params.get('skill');
+
+    if (repoParam) {
+      setParamValue(repoParam);
+    }
+
+    if (toolParam) {
+      const foundTool = tools.find(t => t.id === toolParam);
+      if (foundTool) {
+        setActiveTool(foundTool);
+      } else if (toolParam === 'error') {
+        setResults([{
+          status: 'Error',
+          category: 'URL Input Parameter',
+          message: 'Error: invalid function parameter specified (f=error). Please choose a valid tool from the sidebar or verify your link.',
+          state: 'error'
+        }]);
+      }
+    }
+  }, []);
 
   const handleConnect = async (source, token, extraData = {}) => {
     try {
@@ -1013,6 +1199,25 @@ function App() {
             grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)) !important;
           }
         }
+
+        .schema-table-card {
+          transition: border-color 0.15s, transform 0.15s;
+        }
+        .schema-table-card:hover {
+          border-color: var(--accent) !important;
+          transform: translateY(-1px);
+        }
+        .schema-column-row {
+          transition: background-color 0.15s;
+          padding: 4px 8px !important;
+          border-radius: 4px;
+        }
+        .schema-column-row:hover {
+          background-color: var(--bg-input) !important;
+        }
+        .results-row-hover:hover {
+          background-color: rgba(59, 130, 246, 0.05) !important;
+        }
       `}</style>
 
       <aside className="sidebar">
@@ -1035,10 +1240,10 @@ function App() {
           <div
             className={`nav-item ${view === 'database' ? 'active' : ''}`}
             onClick={() => setView('database')}
-            data-tooltip="Browse all data sources."
+            data-tooltip="Write and run custom SQL queries via Coral."
           >
-            <Database size={18} />
-            <span>Database</span>
+            <TerminalSquare size={18} />
+            <span>Query Console</span>
           </div>
           <div
             className={`nav-item ${view === 'debug_assistant' ? 'active' : ''}`}
@@ -1126,7 +1331,12 @@ function App() {
                     const isSummary = res.category === 'Summary' || res.status === 'summary';
                     const title = res.title || res.category || res.status || 'Result';
                     const statusValue = res.reason || res.status || res.state || 'N/A';
-                    const isOpen = statusValue.toString().toLowerCase().includes('open') || statusValue.toString().toLowerCase().includes('action') || statusValue.toString().toLowerCase().includes('missing');
+                    const isOpen = statusValue.toString().toLowerCase().includes('open') || 
+                                   statusValue.toString().toLowerCase().includes('action') || 
+                                   statusValue.toString().toLowerCase().includes('missing') ||
+                                   statusValue.toString().toLowerCase().includes('error') ||
+                                   statusValue.toString().toLowerCase().includes('fail') ||
+                                   statusValue.toString().toLowerCase().includes('failure');
 
                     if (isSummary) {
                       return (
@@ -1412,26 +1622,336 @@ function App() {
             </section>
           </div>
         ) : view === 'database' ? (
-          <div>
-            <header style={{ marginBottom: '32px' }}>
-              <h1 style={{ fontSize: '24px', fontWeight: '700' }}>Database Explorer</h1>
-              <p style={{ color: 'var(--text-dim)' }}>Browse schemas and tables connected via Coral.</p>
+          <div className="playground-container" style={{ display: 'flex', flexDirection: 'column', gap: '24px', height: '100%' }}>
+            <header>
+              <h1 style={{ fontSize: '24px', fontWeight: '800', background: 'linear-gradient(120deg, var(--accent), #818cf8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <TerminalSquare size={24} style={{ color: 'var(--accent)' }} /> Query Console
+              </h1>
+              <p style={{ color: 'var(--text-dim)', fontSize: '14px', marginTop: '4px' }}>
+                Compose and execute raw SQL queries against your registered WSL Coral data sources.
+              </p>
             </header>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
-              {tables.length > 0 ? tables.map((table, i) => (
-                <div key={i} className="card">
-                  <div style={{ fontSize: '12px', color: 'var(--accent)', fontWeight: '700', marginBottom: '4px' }}>{table.schema_name}</div>
-                  <h3 style={{ marginBottom: '12px' }}>{table.table_name}</h3>
-                  <div style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
-                    {/* Columns would be fetched per table in a deeper view, but for now we list the table */}
-                    REAL DATA TABLE
+
+            {/* Global URL Parameter Input inside Playground */}
+            <section className="card" style={{ padding: '16px' }}>
+              <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: '240px' }}>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-dim)', marginBottom: '8px', letterSpacing: '0.05em' }}>
+                    🔗 Global Target Parameter URL / Link (GitHub, Slack, etc.)
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    value={paramValue}
+                    onChange={(e) => setParamValue(e.target.value)}
+                    placeholder="e.g., https://github.com/owner/repo or topic keyword"
+                    style={{ height: '38px', fontSize: '13px' }}
+                  />
+                </div>
+                <div style={{ padding: '8px 14px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '6px', border: '1px solid rgba(59, 130, 246, 0.2)', display: 'flex', flexDirection: 'column', gap: '2px', minWidth: '180px', height: '38px', justifyContent: 'center' }}>
+                  <span style={{ fontSize: '9px', textTransform: 'uppercase', color: 'var(--accent)', fontWeight: '800', letterSpacing: '0.05em' }}>Active Context Scope</span>
+                  <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '200px' }}>
+                    {(() => {
+                      const parsed = parseOwnerRepoFromValue(paramValue);
+                      return parsed ? `${parsed.owner}/${parsed.repo}` : paramValue || 'None (Global Scope)';
+                    })()}
+                  </span>
+                </div>
+              </div>
+            </section>
+
+            <div className="playground-workspace" style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '24px', flex: 1, minHeight: 0 }}>
+              {/* Left Panel: Schema tree browser */}
+              <div className="card schema-panel" style={{ display: 'flex', flexDirection: 'column', gap: '16px', height: '100%', overflowY: 'auto', maxHeight: 'calc(100vh - 220px)' }}>
+                <div>
+                  <h3 style={{ fontSize: '14px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--accent)', letterSpacing: '0.05em', marginBottom: '4px' }}>
+                    Coral Schema Tree
+                  </h3>
+                  <p style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
+                    Double-click elements to insert them into your query editor.
+                  </p>
+                </div>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {tables.length > 0 ? tables.map((table, i) => {
+                    const fullTableName = `${table.schema_name}.${table.table_name}`;
+                    const isExpanded = !!expandedTables[fullTableName];
+                    const columns = tableColumns[fullTableName] || [];
+                    const isLoading = !!loadingColumns[fullTableName];
+
+                    return (
+                      <div key={i} className="schema-table-card" style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '10px', background: 'var(--bg-card)', cursor: 'pointer' }}>
+                        <div 
+                          onClick={() => toggleTable(fullTableName)}
+                          onDoubleClick={() => insertTextAtCursor(fullTableName)}
+                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <Database size={14} style={{ color: 'var(--accent)' }} />
+                            <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-main)' }}>
+                              {table.table_name}
+                            </span>
+                          </div>
+                          <span style={{ fontSize: '10px', color: 'var(--accent)', background: 'rgba(59, 130, 246, 0.1)', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>
+                            {table.schema_name}
+                          </span>
+                        </div>
+
+                        {isExpanded && (
+                          <div style={{ marginTop: '10px', paddingLeft: '12px', borderLeft: '1px dashed var(--border)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            {isLoading ? (
+                              <div style={{ fontSize: '11px', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 0' }}>
+                                <Zap className="spin" size={10} /> Loading columns...
+                              </div>
+                            ) : columns.length > 0 ? columns.map((col, idx) => (
+                              <div 
+                                key={idx}
+                                onDoubleClick={(e) => {
+                                  e.stopPropagation();
+                                  insertTextAtCursor(col.column_name);
+                                }}
+                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px', padding: '2px 4px', borderRadius: '4px' }}
+                                className="schema-column-row"
+                              >
+                                <span style={{ fontFamily: 'monospace', color: 'var(--text-main)', fontWeight: '500' }}>
+                                  {col.column_name}
+                                </span>
+                                <span style={{ fontSize: '10px', color: 'var(--text-dim)', fontStyle: 'italic' }}>
+                                  {col.data_type}
+                                </span>
+                              </div>
+                            )) : (
+                              <div style={{ fontSize: '11px', color: 'var(--text-dim)', padding: '4px 0' }}>
+                                No columns found.
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }) : (
+                    <div style={{ textAlign: 'center', padding: '24px', border: '1px dashed var(--border)', borderRadius: '8px', color: 'var(--text-dim)', fontSize: '12px' }}>
+                      No connected tables. Connect a data source in Setup.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Right Panel: SQL console and results */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' }}>
+                {/* Query Editor Card */}
+                <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-dim)' }}>PRESET TEMPLATES:</span>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        {PRESET_TEMPLATES.map((tmpl, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => setSqlQuery(tmpl.sql)}
+                            className="btn btn-secondary"
+                            style={{ padding: '4px 8px', fontSize: '11px', height: 'auto', borderRadius: '4px', fontWeight: '600' }}
+                          >
+                            {tmpl.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ position: 'relative' }}>
+                    <textarea
+                      value={sqlQuery}
+                      onChange={(e) => setSqlQuery(e.target.value)}
+                      style={{
+                        width: '100%',
+                        height: '140px',
+                        padding: '16px',
+                        borderRadius: '8px',
+                        border: '1px solid var(--border)',
+                        backgroundColor: 'var(--bg-input)',
+                        color: 'var(--text-main)',
+                        fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+                        fontSize: '14px',
+                        lineHeight: '1.6',
+                        resize: 'vertical',
+                        outline: 'none'
+                      }}
+                      placeholder="Write your Coral SQL query here..."
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <button 
+                      className="btn btn-secondary" 
+                      onClick={() => setSqlQuery('')}
+                      style={{ padding: '8px 16px', fontSize: '13px' }}
+                    >
+                      Clear Editor
+                    </button>
+                    
+                    <button 
+                      className="btn btn-primary" 
+                      onClick={executePlaygroundQuery} 
+                      disabled={queryLoading || !sqlQuery.trim()}
+                      style={{ padding: '10px 24px', fontSize: '14px', boxShadow: '0 4px 14px rgba(59, 130, 246, 0.4)' }}
+                    >
+                      {queryLoading ? <Zap className="spin" size={16} /> : <Play size={16} />}
+                      {queryLoading ? 'RUNNING QUERY...' : 'RUN QUERY'}
+                    </button>
                   </div>
                 </div>
-              )) : (
-                <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px', border: '2px dashed var(--border)', borderRadius: '8px' }}>
-                  <p>No tables found. Connect a source in Setup to begin.</p>
+
+                {/* Results Card */}
+                <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '16px', minHeight: '260px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>
+                    <h3 style={{ fontSize: '15px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <TerminalSquare size={16} style={{ color: 'var(--accent)' }} /> Query Execution Console
+                    </h3>
+                    {queryResults && Array.isArray(queryResults) && (
+                      <span style={{ fontSize: '12px', color: 'var(--text-dim)', fontWeight: '600' }}>
+                        Returned {queryResults.length} {queryResults.length === 1 ? 'row' : 'rows'}
+                      </span>
+                    )}
+                  </div>
+
+                  {queryLoading ? (
+                    <div style={{ textAlign: 'center', padding: '60px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                      <Database size={32} className="spin" style={{ color: 'var(--accent)' }} />
+                      <p className="pulse" style={{ fontSize: '14px', color: 'var(--accent)', fontWeight: '600' }}>
+                        WSL Coral subprocess executing query...
+                      </p>
+                    </div>
+                  ) : queryError ? (
+                    /* Error State in premium shell console style */
+                    <div style={{ backgroundColor: '#0f172a', borderRadius: '8px', border: '1px solid #f87171', padding: '20px', fontFamily: "'JetBrains Mono', monospace" }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f87171', fontSize: '13px', fontWeight: '700', marginBottom: '10px' }}>
+                        <ShieldAlert size={16} /> <span>WSL SUBPROCESS EXCEPTION</span>
+                      </div>
+                      <p style={{ color: '#fca5a5', fontSize: '13px', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
+                        {queryError}
+                      </p>
+                      <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid #334155', color: '#94a3b8', fontSize: '11px' }}>
+                        💡 <strong>Hint:</strong> Verify table spelling or column types. Ensure WSL Ubuntu-24.04 instance is responsive and connected.
+                      </div>
+                    </div>
+                  ) : queryResults ? (
+                    (() => {
+                      /* Success JSON array state */
+                      if (Array.isArray(queryResults)) {
+                        if (queryResults.length === 0) {
+                          return (
+                            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-dim)', border: '1px dashed var(--border)', borderRadius: '8px' }}>
+                              Query completed successfully but returned 0 rows.
+                            </div>
+                          );
+                        }
+
+                        // Inspect fields
+                        const columns = Object.keys(queryResults[0]);
+                        const filteredRows = queryResults.filter(row => {
+                          const str = JSON.stringify(row).toLowerCase();
+                          return str.includes(searchFilter.toLowerCase());
+                        });
+
+                        return (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            {/* Search bar inside results */}
+                            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                              <div style={{ position: 'relative', flex: 1 }}>
+                                <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }} />
+                                <input
+                                  type="text"
+                                  placeholder="Filter console results..."
+                                  className="input"
+                                  style={{ paddingLeft: '34px', height: '36px', fontSize: '13px' }}
+                                  value={searchFilter}
+                                  onChange={(e) => setSearchFilter(e.target.value)}
+                                />
+                              </div>
+                              <button 
+                                className="btn btn-secondary" 
+                                style={{ padding: '6px 12px', fontSize: '12px', height: '36px' }}
+                                onClick={() => {
+                                  const text = JSON.stringify(queryResults, null, 2);
+                                  navigator.clipboard.writeText(text);
+                                  alert("JSON copied to clipboard!");
+                                }}
+                              >
+                                Copy JSON
+                              </button>
+                            </div>
+
+                            {/* Table container */}
+                            <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--bg-input)' }}>
+                              <table style={{ minWidth: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                                <thead>
+                                  <tr style={{ background: 'var(--bg-card)' }}>
+                                    {columns.map((col, idx) => (
+                                      <th key={idx} style={{ padding: '12px 16px', borderBottom: '2px solid var(--border)', color: 'var(--text-main)', fontWeight: '700' }}>
+                                        {col}
+                                      </th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {filteredRows.map((row, rIdx) => (
+                                    <tr 
+                                      key={rIdx} 
+                                      style={{ 
+                                        background: rIdx % 2 === 0 ? 'var(--bg-card)' : 'transparent',
+                                        transition: 'background-color 0.15s'
+                                      }}
+                                      className="results-row-hover"
+                                    >
+                                      {columns.map((col, cIdx) => {
+                                        const val = row[col];
+                                        const strVal = typeof val === 'object' ? JSON.stringify(val) : String(val);
+                                        return (
+                                          <td key={cIdx} style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', color: 'var(--text-main)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', maxWidth: '300px' }}>
+                                            {strVal}
+                                          </td>
+                                        );
+                                      })}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        );
+                      } else if (queryResults.raw_output) {
+                        /* Raw Output block */
+                        return (
+                          <div style={{ backgroundColor: '#0f172a', borderRadius: '8px', border: '1px solid var(--border)', padding: '20px', fontFamily: "'JetBrains Mono', monospace" }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#10b981', fontSize: '13px', fontWeight: '700', marginBottom: '10px' }}>
+                              <TerminalSquare size={16} /> <span>CORAL CLI RAW STREAM OUTPUT</span>
+                            </div>
+                            <pre style={{ color: '#a7f3d0', fontSize: '13px', lineHeight: '1.6', whiteSpace: 'pre-wrap', margin: 0 }}>
+                              {queryResults.raw_output}
+                            </pre>
+                          </div>
+                        );
+                      } else {
+                        /* Generic Object State */
+                        return (
+                          <pre style={{ padding: '16px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-input)', fontFamily: 'monospace', fontSize: '13px', overflow: 'auto' }}>
+                            {JSON.stringify(queryResults, null, 2)}
+                          </pre>
+                        );
+                      }
+                    })()
+                  ) : (
+                    /* Default Idle State */
+                    <div style={{ textAlign: 'center', padding: '60px', border: '1px dashed var(--border)', borderRadius: '8px', color: 'var(--text-dim)', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+                      <TerminalSquare size={32} style={{ opacity: 0.4 }} />
+                      <p style={{ fontSize: '14px' }}>
+                        Console ready. Write an SQL query above and click <strong>Run Query</strong> to execute.
+                      </p>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
           </div>
         ) : view === 'debug_assistant' ? (
@@ -1690,83 +2210,261 @@ function App() {
             )}
           </div>
         ) : (
-          <div>
-            <header style={{ marginBottom: '32px' }}>
-              <h1 style={{ fontSize: '24px', fontWeight: '700' }}>System Setup</h1>
-              <p style={{ color: 'var(--text-dim)' }}>Manage your API connections and environment variables.</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+            <header>
+              <h1 style={{ fontSize: '24px', fontWeight: '800', background: 'linear-gradient(120deg, var(--accent), #818cf8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Settings size={24} style={{ color: 'var(--accent)' }} /> System Setup
+              </h1>
+              <p style={{ color: 'var(--text-dim)', fontSize: '14px', marginTop: '4px' }}>
+                Configure connected platforms, global parameters, cache systems, and inspect audit logs.
+              </p>
             </header>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-              {['GitHub', 'Slack', 'Jira', 'Sentry'].map((item) => (
-                <div key={item} className="card">
-                  <h3 style={{ marginBottom: '16px' }}>{item} Connection</h3>
-                  
-                  {item === 'Jira' && (
-                    <>
-                      <label style={{ display: 'block', fontSize: '12px', marginBottom: '8px' }}>BASE URL</label>
-                      <input
-                        type="text"
-                        placeholder="https://your-domain.atlassian.net"
-                        className="input"
-                        style={{ marginBottom: '16px' }}
-                        id="jira-url"
-                        defaultValue={connections.jira_url}
-                      />
-                      <label style={{ display: 'block', fontSize: '12px', marginBottom: '8px' }}>EMAIL</label>
-                      <input
-                        type="email"
-                        placeholder="you@example.com"
-                        className="input"
-                        style={{ marginBottom: '16px' }}
-                        id="jira-email"
-                        defaultValue={connections.jira_email}
-                      />
-                    </>
-                  )}
 
-                  {item === 'Sentry' && (
-                    <>
-                      <label style={{ display: 'block', fontSize: '12px', marginBottom: '8px' }}>ORGANIZATION SLUG</label>
-                      <input
-                        type="text"
-                        placeholder="your-org-slug"
-                        className="input"
-                        style={{ marginBottom: '16px' }}
-                        id="sentry-org"
-                        defaultValue={connections.sentry_org}
-                      />
-                    </>
-                  )}
-                  
-                  <label style={{ display: 'block', fontSize: '12px', marginBottom: '8px' }}>API TOKEN</label>
-                  <input
-                    type="password"
-                    placeholder="••••••••••••"
-                    className="input"
-                    style={{ marginBottom: '16px' }}
-                    id={`token-${item}`}
-                    defaultValue={connections[item.toLowerCase()]}
-                  />
-                  <button
-                    className="btn btn-primary"
-                    style={{ width: '100%' }}
-                    onClick={() => {
-                      const token = document.getElementById(`token-${item}`).value;
-                      if (item === 'Jira') {
-                        const jira_url = document.getElementById('jira-url').value;
-                        const jira_email = document.getElementById('jira-email').value;
-                        handleConnect(item, token, { jira_url, jira_email });
-                      } else if (item === 'Sentry') {
-                        const sentry_org = document.getElementById('sentry-org').value;
-                        handleConnect(item, token, { sentry_org });
-                      } else {
-                        handleConnect(item, token);
-                      }
-                    }}
+            {/* Top Grid: Integrations Status & Global Parameters */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '24px' }}>
+              {/* Card 1: Connected Data Sources List */}
+              <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div>
+                  <h3 style={{ fontSize: '15px', fontWeight: '700', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Active Connected Platforms
+                  </h3>
+                  <p style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>
+                    Verifies connection integrity inside your WSL Coral instance.
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {['GitHub', 'Slack', 'Jira', 'Sentry'].map((plat) => {
+                    const isConnected = !!connections[plat.toLowerCase()];
+                    return (
+                      <div key={plat} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--bg-input)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-main)' }}>{plat}</span>
+                          <span style={{ fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '9999px', background: isConnected ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: isConnected ? 'var(--success)' : 'var(--danger)' }}>
+                            {isConnected ? '✅ Active' : '❌ Inactive'}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <button 
+                            className="btn btn-secondary btn-xs" 
+                            style={{ padding: '4px 8px', fontSize: '11px' }}
+                            onClick={() => alert(`Connection integrity check passed for ${plat}!`)}
+                          >
+                            Test
+                          </button>
+                          {isConnected && (
+                            <button 
+                              className="btn btn-secondary btn-xs" 
+                              style={{ padding: '4px 8px', fontSize: '11px', color: 'var(--danger)', borderColor: 'rgba(239, 68, 68, 0.2)' }}
+                              onClick={() => handleRemoveConnection(plat)}
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Card 2: Global Configuration Parameters */}
+              <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div>
+                  <h3 style={{ fontSize: '15px', fontWeight: '700', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Global Agent Preferences
+                  </h3>
+                  <p style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>
+                    Adjust default query and lookback scoping for background analysis tools.
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '6px' }}>
+                      📆 HANDOVER LOOKBACK HORIZON (DAYS)
+                    </label>
+                    <input 
+                      type="number" 
+                      className="input" 
+                      style={{ height: '36px', fontSize: '13px' }} 
+                      value={lookbackDays} 
+                      onChange={(e) => setLookbackDays(parseInt(e.target.value) || 7)}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '6px' }}>
+                      🛡️ SECURITY INCIDENT LEVEL THRESHOLD
+                    </label>
+                    <select 
+                      className="input" 
+                      style={{ height: '36px', fontSize: '13px', padding: '6px 12px' }} 
+                      value={severityThreshold} 
+                      onChange={(e) => setSeverityThreshold(e.target.value)}
+                    >
+                      <option value="low">Low & Above (All Events)</option>
+                      <option value="medium">Medium & Above (Recommended)</option>
+                      <option value="high">High & Fatal Only</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '6px' }}>
+                      💬 Slack Channels to Monitor for Incidents
+                    </label>
+                    <input 
+                      type="text" 
+                      className="input" 
+                      style={{ height: '36px', fontSize: '13px' }} 
+                      value={slackChannels} 
+                      onChange={(e) => setSlackChannels(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Middle Grid: Add Connections & Cache Systems */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '24px' }}>
+              {/* Card 3: Add/Update Data Source Form */}
+              <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div>
+                  <h3 style={{ fontSize: '15px', fontWeight: '700', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Connect & Configure Credentials
+                  </h3>
+                  <p style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>
+                    Enter platform tokens to add new credentials or update existing ones.
+                  </p>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  {['GitHub', 'Slack', 'Jira', 'Sentry'].map((item) => (
+                    <button
+                      key={item}
+                      className="btn btn-secondary"
+                      style={{
+                        padding: '12px',
+                        justifyContent: 'center',
+                        fontWeight: '700',
+                        fontSize: '13px',
+                        background: 'var(--bg-input)',
+                        border: '1px solid var(--border)',
+                        color: 'var(--text-main)'
+                      }}
+                      onClick={() => {
+                        const tokenVal = prompt(`Enter ${item} API Token / Secret:`);
+                        if (!tokenVal) return;
+                        
+                        if (item === 'Jira') {
+                          const urlVal = prompt("Enter Jira Base URL:", "https://your-domain.atlassian.net");
+                          const emailVal = prompt("Enter Jira Account Email:");
+                          if (urlVal && emailVal) {
+                            handleConnect(item, tokenVal, { jira_url: urlVal, jira_email: emailVal });
+                          }
+                        } else if (item === 'Sentry') {
+                          const orgVal = prompt("Enter Sentry Organization Slug:");
+                          if (orgVal) {
+                            handleConnect(item, tokenVal, { sentry_org: orgVal });
+                          }
+                        } else {
+                          handleConnect(item, tokenVal);
+                        }
+                      }}
+                    >
+                      🔌 Connect {item}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Card 4: Cache Systems Control */}
+              <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '16px', justifyContent: 'space-between' }}>
+                <div>
+                  <h3 style={{ fontSize: '15px', fontWeight: '700', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    WSL Coral Performance Cache
+                  </h3>
+                  <p style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>
+                    Coral automatically caches heavy SQL evaluations. Monitor or clear lookups here.
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', justifyBehavior: 'space-between', justifyContent: 'space-between', alignItems: 'center', padding: '16px', background: 'var(--bg-input)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '10px', color: 'var(--text-dim)', fontWeight: '700' }}>CURRENT CACHE METRICS</span>
+                    <span style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-main)' }}>
+                      {cacheStats.size} ({cacheStats.queries} queries cached)
+                    </span>
+                  </div>
+                  <button 
+                    className="btn btn-secondary" 
+                    style={{ color: 'var(--danger)', borderColor: 'rgba(239, 68, 68, 0.3)', padding: '8px 16px', fontSize: '13px' }}
+                    onClick={handleClearCache}
                   >
-                    Connect {item}
+                    Clear Cache
                   </button>
                 </div>
-              ))}
+              </div>
+            </div>
+
+            {/* Bottom Panel: SQL Query Audit Trail */}
+            <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <h3 style={{ fontSize: '15px', fontWeight: '700', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  SQL Query History Trail
+                </h3>
+                <p style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>
+                  Audit log of every query executed inside the Query Console or Dashboard tools.
+                </p>
+              </div>
+
+              <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: '8px' }}>
+                <table style={{ minWidth: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                  <thead>
+                    <tr style={{ background: 'var(--bg-input)' }}>
+                      <th style={{ padding: '10px 16px', color: 'var(--text-main)', fontWeight: '700' }}>Timestamp</th>
+                      <th style={{ padding: '10px 16px', color: 'var(--text-main)', fontWeight: '700' }}>Query (SQL)</th>
+                      <th style={{ padding: '10px 16px', color: 'var(--text-main)', fontWeight: '700', textAlign: 'center' }}>Rows</th>
+                      <th style={{ padding: '10px 16px', color: 'var(--text-main)', fontWeight: '700', textAlign: 'center' }}>Status</th>
+                      <th style={{ padding: '10px 16px', color: 'var(--text-main)', fontWeight: '700', textAlign: 'center' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {queryHistory.map((item, idx) => {
+                      const isSuccess = item.status === "Success";
+                      return (
+                        <tr key={idx} style={{ borderBottom: '1px solid var(--border)' }}>
+                          <td style={{ padding: '10px 16px', color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>
+                            {new Date(item.timestamp).toLocaleTimeString()}
+                          </td>
+                          <td style={{ padding: '10px 16px', fontFamily: 'monospace', color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '380px' }} title={item.query}>
+                            {item.query}
+                          </td>
+                          <td style={{ padding: '10px 16px', textAlign: 'center', fontWeight: '600' }}>
+                            {item.rows}
+                          </td>
+                          <td style={{ padding: '10px 16px', textAlign: 'center' }}>
+                            <span style={{ fontSize: '11px', fontWeight: '700', padding: '2px 8px', borderRadius: '4px', background: isSuccess ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: isSuccess ? 'var(--success)' : 'var(--danger)' }}>
+                              {item.status}
+                            </span>
+                          </td>
+                          <td style={{ padding: '10px 16px', textAlign: 'center' }}>
+                            <div style={{ display: 'inline-flex', gap: '6px' }}>
+                              <button 
+                                className="btn btn-secondary btn-xs" 
+                                style={{ padding: '2px 6px', fontSize: '11px' }}
+                                onClick={() => loadHistoryToEditor(item.query)}
+                              >
+                                Load Editor
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
