@@ -1918,17 +1918,18 @@ function App() {
             <header>
               <div className="nav-container">
                 <a href="#" className="logo" onClick={(e) => { e.preventDefault(); setView('landing'); }}
-                  style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none' }}
                 >
-                  {/* T🌳P logomark */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
-                    <span style={{ fontSize: '22px', fontWeight: '900', fontFamily: "'Outfit', 'Inter', sans-serif", color: '#e2e8f0', lineHeight: '1' }}>T</span>
-                    <img src="/logo_tree.png" alt="O" style={{ width: '24px', height: '24px', display: 'block' }} />
-                    <span style={{ fontSize: '22px', fontWeight: '900', fontFamily: "'Outfit', 'Inter', sans-serif", color: '#e2e8f0', lineHeight: '1' }}>P</span>
+                  {/* T🌳P logomark — bigger */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1px', lineHeight: '1' }}>
+                    <span style={{ fontSize: '34px', fontWeight: '900', fontFamily: "'Outfit', 'Inter', sans-serif", color: '#e2e8f0', lineHeight: '1', display: 'flex', alignItems: 'center' }}>T</span>
+                    <img src="/logo_tree.png" alt="O" style={{ width: '36px', height: '36px', display: 'block', flexShrink: 0 }} />
+                    <span style={{ fontSize: '34px', fontWeight: '900', fontFamily: "'Outfit', 'Inter', sans-serif", color: '#e2e8f0', lineHeight: '1', display: 'flex', alignItems: 'center' }}>P</span>
                   </div>
-                  {/* Full name */}
-                  <span style={{ fontSize: '13px', fontWeight: '700', fontFamily: "'Outfit', 'Inter', sans-serif", color: '#e2e8f0', letterSpacing: '0.02em' }}>
-                    TEAM OPTIMIZATION PORTAL <span style={{ background: 'linear-gradient(135deg, #6366f1 0%, #3b82f6 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>(TOP)</span>
+                  {/* Full name — vertically centred, bigger */}
+                  <span style={{ fontSize: '15px', fontWeight: '700', fontFamily: "'Outfit', 'Inter', sans-serif", color: '#e2e8f0', letterSpacing: '0.04em', lineHeight: '1.2', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    TEAM OPTIMIZATION PORTAL
+                    <span style={{ background: 'linear-gradient(135deg, #6366f1 0%, #3b82f6 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: '800' }}>(TOP)</span>
                   </span>
                 </a>
                 <nav className="nav-links">
