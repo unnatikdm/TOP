@@ -2,15 +2,68 @@
 
 Welcome to the **Team Optimization Portal (TOP)**—a state-of-the-art, premium developer intelligence and operations workspace. 
 
-TOP is designed to convert complex, jargon-heavy database tables, dense application crash logs (stack traces), and developer conversations into **clear, structured, plain-English summaries**. By bridging the gap between high-level management and low-level source code, TOP empowers entire teams to stay aligned without drowning in technical noise.
+TOP is designed to convert complex, jargon-heavy database tables, dense application crash logs (stack traces), and developer conversations into **clear, structured, plain-English summaries**. By bridging the gap between high-level management and low-level source code, TOP empowers entire teams to stay aligned, track bottlenecks, resolve build issues, and search company history without drowning in technical noise.
 
 TOP is powered by a high-speed Python FastAPI backend, a responsive React Vite frontend, a secure local Linux (WSL) configuration lifecycle, and a resilient multi-tier AI summary engine.
 
 ---
 
-## 🚀 Interactive Tour: Features Explained in Simple English
+## 🛠️ Core Developer Suite: The Tools That Drive TOP
 
-Here is a guide to every powerful feature packed into your TOP dashboard:
+The dashboard comes packed with a specialized suite of premium developer tools built to optimize daily engineering operations. Here is a full-blown breakdown of each product:
+
+### 1. ⚡ Fix Build (Failure Hunter)
+* **The Problem:** When a CI/CD build breaks, developers have to dig through thousands of lines of terminal output inside GitHub Actions or Sentry crash logs to figure out which line of code caused the exception.
+* **The Solution:** **Failure Hunter** automatically scans your target repository's CI/CD action runs to find build and test failures in real-time.
+* **Under the Hood:** 
+  * The backend queries database tables and cloud REST APIs (`github.repo_action_runs`) to fetch the latest failed workflow runs.
+  * It isolates the exact failed step, commit SHA, and error log segment.
+* **The User Experience:** 
+  * Renders a glowing list of failed build cards, featuring the workflow title, commit author, and direct clickable links to the GitHub Actions page.
+  * Parses and displays key action metrics (such as the workflow duration ⏱️, trigger event 🔄, and run number 🔢) as vibrant pills.
+  * Generates an **asynchronous AI debugging drawer**: clicking it translates the cryptic compiler or test traceback (e.g., `NullPointerException` or `AssertionError`) into a plain-English explanation showing exactly *which file broke*, *why*, and *how to fix it*.
+
+### 2. 🧹 Cleanup PRs (PR Reaper)
+* **The Problem:** Pull Requests (PRs) sit in limbo waiting for review, stalling features, causing merge conflicts, and slowing down product launches. 
+* **The Solution:** **PR Reaper** scans open Pull Requests to identify bottlenecks, stagnant code, or missing approvals.
+* **Under the Hood:** 
+  * Uses direct, multi-threaded GitHub REST API calls to evaluate open PRs against review states and commit activities concurrently.
+  * It detects if a PR is stale (inactive for > 14 days) or waiting on required reviewer approvals.
+* **The User Experience:**
+  * Displays an elegant dashboard showcasing high-impact metric cards (e.g., *Stale PRs Found*, *Missing Approvals*) at a glance.
+  * Groups stagnant PRs into beautiful grid cards. Each card highlights the PR title, author metadata, and clickable hyperlink anchor.
+  * Automatically calculates review progress: parses and renders **metric pills** for review comments 💬, approved checkmarks ✅, requested reviewers, and exact submission dates.
+  * Displays a glassmorphic alert callout (e.g., *"Blocked: Waiting for approval from Lead Architect"*) to guide team leads.
+
+### 3. 📝 Handover Tool (Accomplishments & Handoffs)
+* **The Problem:** Handing over a project between developers, wrapping up a sprint milestone, or compiling release notes manually takes hours of searching git logs and writing summaries.
+* **The Solution:** **Handover** automatically generates professional milestone documentation and release summaries.
+* **Under the Hood:**
+  * Gathers all commits, pull requests, and closed issues for a target repository within the target scope.
+  * Integrates the 3-Tier AI Orchestrator to distill the raw technical modifications into a comprehensive progress report.
+* **The User Experience:**
+  * Outputs a structured, copy-pasteable markdown document featuring three highly professional sections:
+    1. **Summary of Accomplishments:** A clear timeline of features shipped.
+    2. **Key Technical Changes:** Code refactors, database migrations, and structural highlights.
+    3. **Handoff & Next Steps:** Open issues, remaining tasks, and suggestions for the next developer.
+  * Ideal for managers compiling sprint updates or engineers transitioning tasks.
+
+### 4. 💻 Query Console (Live SQL Playground)
+* **The Problem:** Accessing raw telemetry across GitHub, Jira, and Sentry requires building custom APIs or executing heavy database lookups.
+* **The Solution:** A direct, full-blown SQL playground enabling you to query your entire cloud and developer stack using standard database syntax.
+* **Under the Hood:**
+  * Hooks into the local Coral WSL compiler to execute queries against schemas like `github.issues`, `github.commits`, `github.pull_requests`, and `github.repo_action_runs`.
+  * Integrates our **3-second fail-fast timeout and local schema redirection fallbacks**. If a heavy WSL query lags, TOP intercepts it and executes standard high-speed cloud REST API requests, mapping the variables to fully match the expected database schemas perfectly.
+* **The User Experience:**
+  * Includes the **Coral Schema Tree** sidebar listing all available tables and columns with clean ellipsis truncations and hover titles.
+  * Double-clicking elements in the tree automatically inserts them into your query console.
+  * Features a gorgeous syntax editor, custom schema badges, and tabular results panels.
+
+---
+
+## 🚀 Interface Tour: Dashboard Enhancements
+
+Here is a guide to every powerful visual feature packed into your TOP dashboard:
 
 ### 1. 🔍 Unified "Debug Assistant" (Cross-Platform Search)
 * **What it is:** A unified search engine for your company’s developer history—like Google Search, but for your internal codebases and operations.
@@ -29,7 +82,7 @@ Here is a guide to every powerful feature packed into your TOP dashboard:
   * **Recommended Action Items:** The exact steps to take next.
 * **Triple-Tier Reliability:**
   * **Tier 1 (Private Local LLM):** Tries to run your local offline Ollama (`llama3.2`) model for complete data privacy.
-  * **Tier 2 (Cloud Fallback AI):** If local Ollama is offline or loading, it instantly redirects to keyless cloud AI with built-in bypass firewalls.
+  * **Tier 2 (Cloud Fallback AI):** If local Ollama is offline or loading, it instantly routes to a keyless cloud AI model using spoofed browser headers to bypass rate-limiting Cloudflare firewalls.
   * **Tier 3 (Local NLP Heuristics):** If your computer is entirely disconnected from the Internet, a built-in Python pattern-matching script takes over and structures the output. **It is guaranteed to work 100% of the time, offline and forever.**
 
 ### 3. 🎨 Interactive Dual-Tab Accordion Cards
@@ -52,10 +105,6 @@ Here is a guide to every powerful feature packed into your TOP dashboard:
 ### 6. 🔗 Global Shared Repository URL Input
 * **What it is:** A shared parameter box that stays with you across the application.
 * **How it works:** Enter a repository URL (or scope parameter) once, and it instantly propagates to all other tools. You can navigate between *Fix Build*, *PR Reaper*, and *Timeline* without the friction of copy-pasting the URL again and again.
-
-### 7. ⚡ Fail-Fast 3-Second Timeout & Direct REST Redirection
-* **What it is:** A guardrail that keeps your dashboard fast and prevents loading spinner freezes.
-* **How it works:** Standard SQL database queries on massive codebases can hang and trigger server timeouts. TOP sets a fail-fast **3-second limit**. If the query doesn't finish, TOP instantly intercepts the operation and fetches the data using direct cloud REST APIs in under **100 milliseconds**!
 
 ---
 
