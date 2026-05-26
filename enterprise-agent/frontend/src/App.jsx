@@ -712,7 +712,7 @@ function App() {
 
         [data-theme='dark'] .brand-logo-img {
           filter: invert(1) hue-rotate(180deg);
-          mix-blend-mode: normal;
+          mix-blend-mode: screen;
         }
 
         body {
@@ -1343,12 +1343,10 @@ function App() {
               alt="TOP Tree Logo" 
               className="brand-logo-img"
               style={{ 
-                width: '40px', 
-                height: '40px', 
-                borderRadius: '8px', 
-                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.25)',
-                border: '1px solid rgba(59, 130, 246, 0.25)',
-                display: 'block'
+                width: '48px', 
+                height: '48px', 
+                display: 'block',
+                transition: 'transform 0.2s ease'
               }} 
               onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.08)'}
               onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
@@ -1360,11 +1358,9 @@ function App() {
                 alt="TOP Tree Logo" 
                 className="brand-logo-img"
                 style={{ 
-                  width: '56px', 
-                  height: '56px', 
-                  borderRadius: '10px',
-                  boxShadow: '0 4px 12px rgba(59, 130, 246, 0.2)',
-                  border: '1px solid rgba(59, 130, 246, 0.2)'
+                  width: '96px', 
+                  height: '96px',
+                  transition: 'transform 0.2s ease'
                 }}
                 onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.04)'}
                 onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
