@@ -647,6 +647,7 @@ function App() {
     >
       <style>{`
         :root {
+          color-scheme: light;
           --bg-main: #f8fafc;
           --bg-sidebar: #ffffff;
           --bg-card: #ffffff;
@@ -662,6 +663,7 @@ function App() {
         }
 
         [data-theme='dark'] {
+          color-scheme: dark;
           --bg-main: #0f172a;
           --bg-sidebar: #1e293b;
           --bg-card: #1e293b;
@@ -680,6 +682,37 @@ function App() {
           margin: 0;
           padding: 0;
           box-sizing: border-box;
+          scrollbar-width: thin;
+          scrollbar-color: var(--border) transparent;
+        }
+
+        /* Premium Global Scrollbar Styling */
+        ::-webkit-scrollbar {
+          width: 6px;
+          height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+          background-color: var(--border);
+          border-radius: 20px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+          background-color: var(--text-dim);
+        }
+
+        .brand-logo-img {
+          transition: transform 0.2s ease, filter 0.3s ease;
+          mix-blend-mode: multiply;
+        }
+
+        [data-theme='dark'] .brand-logo-img {
+          filter: invert(1) hue-rotate(180deg);
+          mix-blend-mode: normal;
         }
 
         body {
@@ -1306,15 +1339,15 @@ function App() {
         >
           {isSidebarCollapsed ? (
             <img 
-              src="/logo_top.jpg" 
-              alt="TOP Logo" 
+              src="/logo_tree.jpg" 
+              alt="TOP Tree Logo" 
+              className="brand-logo-img"
               style={{ 
-                width: '48px', 
-                height: 'auto', 
-                borderRadius: '4px', 
-                boxShadow: '0 4px 10px rgba(59, 130, 246, 0.2)',
-                border: '1px solid rgba(59, 130, 246, 0.2)',
-                transition: 'transform 0.2s ease',
+                width: '40px', 
+                height: '40px', 
+                borderRadius: '8px', 
+                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.25)',
+                border: '1px solid rgba(59, 130, 246, 0.25)',
                 display: 'block'
               }} 
               onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.08)'}
@@ -1323,15 +1356,15 @@ function App() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', width: '100%' }}>
               <img 
-                src="/logo_top.jpg" 
-                alt="TOP Logo" 
+                src="/logo_tree.jpg" 
+                alt="TOP Tree Logo" 
+                className="brand-logo-img"
                 style={{ 
-                  height: '60px', 
-                  maxWidth: '100%', 
-                  objectFit: 'contain',
-                  borderRadius: '6px',
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
-                  transition: 'transform 0.2s ease'
+                  width: '56px', 
+                  height: '56px', 
+                  borderRadius: '10px',
+                  boxShadow: '0 4px 12px rgba(59, 130, 246, 0.2)',
+                  border: '1px solid rgba(59, 130, 246, 0.2)'
                 }}
                 onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.04)'}
                 onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
