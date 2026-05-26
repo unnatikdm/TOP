@@ -694,7 +694,7 @@ function App() {
           flex-direction: column;
           gap: 24px;
           height: 100%;
-          overflow: visible;
+          overflow-y: auto;
           position: relative;
         }
 
@@ -739,11 +739,8 @@ function App() {
 
         .nav-item:hover::after {
           content: attr(data-tooltip);
-          position: absolute;
-          left: 100%;
-          top: 50%;
-          transform: translateY(-50%);
-          margin-left: 12px;
+          position: fixed;
+          left: 272px;
           background: #0f172a;
           color: #f8fafc;
           border: 1px solid rgba(255, 255, 255, 0.15);
@@ -759,11 +756,8 @@ function App() {
 
         .nav-item:hover::before {
           content: '';
-          position: absolute;
-          left: 100%;
-          top: 50%;
-          transform: translateY(-50%);
-          margin-left: 6px;
+          position: fixed;
+          left: 266px;
           border-width: 5px;
           border-style: solid;
           border-color: transparent #0f172a transparent transparent;
