@@ -1243,8 +1243,8 @@ function App() {
         <button className="theme-toggle" onClick={toggleTheme}>
           {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
         </button>
-        <div className="logo" style={{ marginTop: '40px' }}>
-          <Layers size={24} /> CORAL AGENT
+        <div className="logo" style={{ marginTop: '40px', fontSize: '15px' }}>
+          <Layers size={24} style={{ flexShrink: 0 }} /> TEAM OPTIMIZATION PORTAL
         </div>
 
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
