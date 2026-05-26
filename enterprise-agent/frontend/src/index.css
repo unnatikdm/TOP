@@ -67,7 +67,7 @@
 
 [data-theme='dark'] .brand-logo-img {
   filter: invert(1) hue-rotate(180deg);
-  mix-blend-mode: normal;
+  mix-blend-mode: screen;
 }
 
 body {
