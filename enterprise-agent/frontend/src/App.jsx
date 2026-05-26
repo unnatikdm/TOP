@@ -1043,13 +1043,13 @@ function App() {
 
         /* Scoped Landing Page styles */
         .landing-scope {
-          --bg: #030712;
-          --card-bg: rgba(17, 24, 39, 0.7);
-          --border: rgba(255, 255, 255, 0.08);
-          --text: #f3f4f6;
-          --text-dim: #9ca3af;
-          --accent: #6366f1;
-          --accent-glow: rgba(99, 102, 241, 0.15);
+          --bg: #f8fafc;
+          --card-bg: rgba(255, 255, 255, 0.7);
+          --border: rgba(0, 0, 0, 0.08);
+          --text: #0f172a;
+          --text-dim: #475569;
+          --accent: #4f46e5;
+          --accent-glow: rgba(79, 70, 229, 0.08);
           --success: #10b981;
           --warning: #f59e0b;
           --danger: #ef4444;
@@ -1087,7 +1087,7 @@ function App() {
           right: -100px !important;
           width: 600px !important;
           height: 600px !important;
-          background: radial-gradient(circle, #4f46e5 0%, #030712 70%) !important;
+          background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(248, 250, 252, 0) 70%) !important;
         }
 
         .landing-scope .glow-2 {
@@ -1095,7 +1095,7 @@ function App() {
           left: -200px !important;
           width: 500px !important;
           height: 500px !important;
-          background: radial-gradient(circle, #3b82f6 0%, #030712 70%) !important;
+          background: radial-gradient(circle, rgba(59, 130, 246, 0.12) 0%, rgba(248, 250, 252, 0) 70%) !important;
         }
 
         .landing-scope .glow-3 {
@@ -1103,7 +1103,7 @@ function App() {
           right: -100px !important;
           width: 550px !important;
           height: 550px !important;
-          background: radial-gradient(circle, #818cf8 0%, #030712 70%) !important;
+          background: radial-gradient(circle, rgba(129, 140, 248, 0.12) 0%, rgba(248, 250, 252, 0) 70%) !important;
         }
 
         .landing-scope header {
@@ -1112,7 +1112,7 @@ function App() {
           left: 0 !important;
           width: 100% !important;
           backdrop-filter: blur(12px) !important;
-          background-color: rgba(3, 7, 18, 0.7) !important;
+          background-color: rgba(255, 255, 255, 0.7) !important;
           border-bottom: 1px solid var(--border) !important;
           z-index: 1000 !important;
           transition: all 0.3s !important;
@@ -1131,7 +1131,7 @@ function App() {
           font-family: var(--font-display) !important;
           font-weight: 800 !important;
           font-size: 22px !important;
-          color: var(--text) !important;
+          color: #0f172a !important;
           text-decoration: none !important;
           display: flex !important;
           align-items: center !important;
@@ -1189,13 +1189,13 @@ function App() {
         }
 
         .landing-scope .btn-secondary {
-          background-color: rgba(255, 255, 255, 0.05) !important;
+          background-color: rgba(0, 0, 0, 0.03) !important;
           color: var(--text) !important;
           border: 1px solid var(--border) !important;
         }
 
         .landing-scope .btn-secondary:hover {
-          background-color: rgba(255, 255, 255, 0.1) !important;
+          background-color: rgba(0, 0, 0, 0.06) !important;
           transform: translateY(-2px) !important;
         }
 
@@ -1220,7 +1220,7 @@ function App() {
           font-weight: 900 !important;
           line-height: 1.15 !important;
           margin-bottom: 24px !important;
-          background: linear-gradient(135deg, #ffffff 0%, #d1d5db 50%, #93c5fd 100%) !important;
+          background: linear-gradient(135deg, #0f172a 0%, #334155 50%, #4f46e5 100%) !important;
           -webkit-background-clip: text !important;
           -webkit-text-fill-color: transparent !important;
         }
@@ -1250,7 +1250,7 @@ function App() {
           border: 1px solid var(--border) !important;
           border-radius: 16px !important;
           padding: 16px !important;
-          box-shadow: 0 20px 50px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1) !important;
+          box-shadow: 0 20px 50px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,1) !important;
           backdrop-filter: blur(12px) !important;
           transform: perspective(1000px) rotateY(-5deg) rotateX(5deg) !important;
           transition: all 0.5s ease !important;
@@ -1258,7 +1258,7 @@ function App() {
 
         .landing-scope .mockup-container:hover {
           transform: perspective(1000px) rotateY(0deg) rotateX(0deg) !important;
-          box-shadow: 0 25px 60px rgba(99, 102, 241, 0.15), inset 0 1px 0 rgba(255,255,255,0.15) !important;
+          box-shadow: 0 25px 60px rgba(99, 102, 241, 0.08), inset 0 1px 0 rgba(255,255,255,1) !important;
         }
 
         .landing-scope .mockup-header {
@@ -1286,7 +1286,7 @@ function App() {
         .landing-scope .mockup-dot.green { background-color: var(--success) !important; }
 
         .landing-scope .mockup-card {
-          background-color: rgba(3, 7, 18, 0.4) !important;
+          background-color: rgba(241, 245, 249, 0.6) !important;
           border: 1px solid var(--border) !important;
           border-radius: 8px !important;
           padding: 14px !important;
@@ -1327,7 +1327,7 @@ function App() {
           font-size: 38px !important;
           font-weight: 800 !important;
           margin-bottom: 12px !important;
-          background: linear-gradient(135deg, #ffffff 0%, #d1d5db 100%) !important;
+          background: linear-gradient(135deg, #0f172a 0%, #334155 100%) !important;
           -webkit-background-clip: text !important;
           -webkit-text-fill-color: transparent !important;
         }
@@ -1350,7 +1350,7 @@ function App() {
           border: 1px solid var(--border) !important;
           border-radius: 12px !important;
           padding: 32px !important;
-          box-shadow: 0 10px 30px rgba(0,0,0,0.3) !important;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.03) !important;
           transition: all 0.3s !important;
           display: flex !important;
           flex-direction: column !important;
@@ -1360,7 +1360,7 @@ function App() {
         .landing-scope .feature-card:hover {
           border-color: var(--accent) !important;
           transform: translateY(-5px) !important;
-          box-shadow: 0 15px 40px var(--accent-glow) !important;
+          box-shadow: 0 15px 40px rgba(99, 102, 241, 0.08) !important;
         }
 
         .landing-scope .feature-icon-box {
@@ -1388,14 +1388,14 @@ function App() {
         }
 
         .landing-scope .terminal-section {
-          background-color: rgba(3, 7, 18, 0.8) !important;
+          background-color: rgba(255, 255, 255, 0.8) !important;
           border: 1px solid var(--border) !important;
           border-radius: 16px !important;
           padding: 32px !important;
           display: grid !important;
           grid-template-columns: 280px 1fr !important;
           gap: 24px !important;
-          box-shadow: 0 20px 60px rgba(0,0,0,0.6) !important;
+          box-shadow: 0 20px 60px rgba(0,0,0,0.05) !important;
           backdrop-filter: blur(12px) !important;
         }
 
@@ -1426,13 +1426,13 @@ function App() {
 
         .landing-scope .terminal-btn:hover {
           color: var(--text) !important;
-          background-color: rgba(255, 255, 255, 0.03) !important;
+          background-color: rgba(0, 0, 0, 0.02) !important;
         }
 
         .landing-scope .terminal-btn.active {
           color: var(--text) !important;
-          background-color: rgba(99, 102, 241, 0.1) !important;
-          border-color: rgba(99, 102, 241, 0.2) !important;
+          background-color: rgba(99, 102, 241, 0.05) !important;
+          border-color: rgba(99, 102, 241, 0.15) !important;
         }
 
         .landing-scope .terminal-workspace {
@@ -1532,7 +1532,7 @@ function App() {
           width: 56px !important;
           height: 56px !important;
           border-radius: 12px !important;
-          background-color: #0b1120 !important;
+          background-color: #ffffff !important;
           border: 1px solid var(--border) !important;
           display: flex !important;
           align-items: center !important;
@@ -1540,7 +1540,7 @@ function App() {
           font-weight: 700 !important;
           font-size: 11px !important;
           color: var(--text) !important;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.5) !important;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.04) !important;
           transition: all 0.3s !important;
           z-index: 5 !important;
           margin-top: 0 !important;
@@ -1548,7 +1548,7 @@ function App() {
 
         .landing-scope .node:hover {
           border-color: var(--accent) !important;
-          box-shadow: 0 0 20px rgba(99, 102, 241, 0.4) !important;
+          box-shadow: 0 0 20px rgba(99, 102, 241, 0.2) !important;
           transform: scale(1.1) !important;
         }
 
@@ -1559,7 +1559,7 @@ function App() {
 
         .landing-scope .pulse-line {
           position: absolute !important;
-          background-color: rgba(99, 102, 241, 0.15) !important;
+          background-color: rgba(99, 102, 241, 0.08) !important;
           z-index: 1 !important;
         }
 
@@ -1605,7 +1605,7 @@ function App() {
           width: 100% !important;
           height: 8px !important;
           border-radius: 4px !important;
-          background: rgba(255, 255, 255, 0.05) !important;
+          background: rgba(0, 0, 0, 0.04) !important;
           border: 1px solid var(--border) !important;
           outline: none !important;
           cursor: pointer !important;
@@ -1634,7 +1634,7 @@ function App() {
         }
 
         .landing-scope .chart-bar-container {
-          background-color: rgba(3, 7, 18, 0.4) !important;
+          background-color: rgba(241, 245, 249, 0.6) !important;
           border: 1px solid var(--border) !important;
           border-radius: 12px !important;
           padding: 24px !important;
@@ -1693,6 +1693,109 @@ function App() {
           font-size: 13px !important;
           color: var(--text-dim) !important;
           margin-top: 60px !important;
+        }
+
+        /* Dynamic Dark Theme Overrides */
+        [data-theme='dark'] .landing-scope {
+          --bg: #030712;
+          --card-bg: rgba(17, 24, 39, 0.7);
+          --border: rgba(255, 255, 255, 0.08);
+          --text: #f3f4f6;
+          --text-dim: #9ca3af;
+          --accent: #6366f1;
+          --accent-glow: rgba(99, 102, 241, 0.15);
+          --success: #10b981;
+          --warning: #f59e0b;
+          --danger: #ef4444;
+        }
+
+        [data-theme='dark'] .landing-scope .glow-1 {
+          background: radial-gradient(circle, #4f46e5 0%, #030712 70%) !important;
+        }
+
+        [data-theme='dark'] .landing-scope .glow-2 {
+          background: radial-gradient(circle, #3b82f6 0%, #030712 70%) !important;
+        }
+
+        [data-theme='dark'] .landing-scope .glow-3 {
+          background: radial-gradient(circle, #818cf8 0%, #030712 70%) !important;
+        }
+
+        [data-theme='dark'] .landing-scope header {
+          background-color: rgba(3, 7, 18, 0.7) !important;
+        }
+
+        [data-theme='dark'] .landing-scope .logo {
+          color: #f3f4f6 !important;
+        }
+
+        [data-theme='dark'] .landing-scope .hero-title {
+          background: linear-gradient(135deg, #ffffff 0%, #d1d5db 50%, #93c5fd 100%) !important;
+          -webkit-background-clip: text !important;
+          -webkit-text-fill-color: transparent !important;
+        }
+
+        [data-theme='dark'] .landing-scope .mockup-container {
+          box-shadow: 0 20px 50px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1) !important;
+        }
+
+        [data-theme='dark'] .landing-scope .mockup-container:hover {
+          box-shadow: 0 25px 60px rgba(99, 102, 241, 0.15), inset 0 1px 0 rgba(255,255,255,0.15) !important;
+        }
+
+        [data-theme='dark'] .landing-scope .mockup-card {
+          background-color: rgba(3, 7, 18, 0.4) !important;
+        }
+
+        [data-theme='dark'] .landing-scope .section-title {
+          background: linear-gradient(135deg, #ffffff 0%, #d1d5db 100%) !important;
+          -webkit-background-clip: text !important;
+          -webkit-text-fill-color: transparent !important;
+        }
+
+        [data-theme='dark'] .landing-scope .feature-card {
+          box-shadow: 0 10px 30px rgba(0,0,0,0.3) !important;
+        }
+
+        [data-theme='dark'] .landing-scope .feature-card:hover {
+          box-shadow: 0 15px 40px var(--accent-glow) !important;
+        }
+
+        [data-theme='dark'] .landing-scope .terminal-section {
+          background-color: rgba(3, 7, 18, 0.8) !important;
+          box-shadow: 0 20px 60px rgba(0,0,0,0.6) !important;
+        }
+
+        [data-theme='dark'] .landing-scope .terminal-btn:hover {
+          color: var(--text) !important;
+          background-color: rgba(255, 255, 255, 0.03) !important;
+        }
+
+        [data-theme='dark'] .landing-scope .terminal-btn.active {
+          color: var(--text) !important;
+          background-color: rgba(99, 102, 241, 0.1) !important;
+          border-color: rgba(99, 102, 241, 0.2) !important;
+        }
+
+        [data-theme='dark'] .landing-scope .node {
+          background-color: #0b1120 !important;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.5) !important;
+        }
+
+        [data-theme='dark'] .landing-scope .node:hover {
+          box-shadow: 0 0 20px rgba(99, 102, 241, 0.4) !important;
+        }
+
+        [data-theme='dark'] .landing-scope .pulse-line {
+          background-color: rgba(99, 102, 241, 0.15) !important;
+        }
+
+        [data-theme='dark'] .landing-scope .chart-bar-container {
+          background-color: rgba(3, 7, 18, 0.4) !important;
+        }
+
+        [data-theme='dark'] .landing-scope .slider {
+          background: rgba(255, 255, 255, 0.05) !important;
         }
       `}</style>
 
@@ -2004,7 +2107,7 @@ function App() {
 
             {/* Footer */}
             <footer>
-              <p>© 2026 Team Optimization Portal (TOP). All rights reserved. Enjoy Your Work with TOP.</p>
+              <p>Enjoy Your Work with TOP.</p>
             </footer>
           </div>
         ) : view === 'dashboard' ? (
