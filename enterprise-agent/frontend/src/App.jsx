@@ -1790,11 +1790,10 @@ function App() {
               <div className="hero-layout">
                 <div>
                   <h1 className="hero-title">
-                    Unleash Developer Intelligence. <br />
-                    Powered by <span>Coral</span>.
+                    Accelerate Engineering Workflows with <span>TOP</span>
                   </h1>
                   <p className="hero-desc">
-                    Decode verbose crash stack traces, git pipelines, and active incidents in under 20ms. TOP consolidates Sentry, Slack, GitHub, and Jira into one unified SQL query engine.
+                    The ultimate developer mission control portal. TOP consolidates Sentry, Slack, GitHub, and Jira using standard SQL queries and an advanced multi-tier offline AI intelligence layer.
                   </p>
                   <div className="hero-ctas">
                     <button onClick={() => setView('dashboard')} className="btn btn-primary">Launch Dashboard</button>
@@ -1829,11 +1828,11 @@ function App() {
               </div>
             </section>
 
-            {/* Features Block (The Coral Core) */}
+            {/* Features Block (TOP Capabilities) */}
             <section id="features" className="section-container">
               <div className="section-title-wrap">
-                <h2 className="section-title">The Coral Query Framework</h2>
-                <p className="section-desc">Traditional interfaces are slow and split across multiple pages. TOP leverages Coral to query your entire system as standard relational SQL databases.</p>
+                <h2 className="section-title">TOP Core Architecture</h2>
+                <p className="section-desc">Traditional troubleshooting is fragmented. The Team Optimization Portal unites real-time unified data querying with robust offline LLM intelligence.</p>
               </div>
               
               <div className="features-grid">
@@ -1843,23 +1842,31 @@ function App() {
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M4 22V4c0-.5.2-1 .6-1.4C5 2.2 5.5 2 6 2h12c.5 0 1 .2 1.4.6.4.4.6.9.6 1.4v18l-5-4-5 4-5-4Z"/></svg>
                   </div>
                   <h3 className="feature-name">Unified SQL Adaptation</h3>
-                  <p className="feature-desc">Treat Jira, GitHub, Slack, and Sentry as standard SQL databases. Query cross-source metrics inside one single unified database view.</p>
+                  <p className="feature-desc">Treat Jira, GitHub, Slack, and Sentry as standard SQL databases. Query cross-source metrics inside one single unified database view powered by Coral.</p>
                 </div>
                 {/* Feature 2 */}
                 <div className="feature-card">
                   <div className="feature-icon-box">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8Z"/></svg>
                   </div>
-                  <h3 className="feature-name">Sub-20ms WSL Pipeline</h3>
-                  <p className="feature-desc">All queries execute asynchronously against Coral's native WSL Ubuntu-24.04 CLI, compiling raw telemetry speeds in milliseconds.</p>
+                  <h3 className="feature-name">High-Performance WSL Pipeline</h3>
+                  <p className="feature-desc">Execute queries asynchronously inside TOP's WSL Ubuntu telemetry pipeline in milliseconds for ultra-responsive feedback loops.</p>
                 </div>
                 {/* Feature 3 */}
                 <div className="feature-card">
                   <div className="feature-icon-box">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                  </div>
+                  <h3 className="feature-name">Triple-Layer LLM System</h3>
+                  <p className="feature-desc">Our Triple-Layer LLM system uses a robust 3-tier architecture: Tier 1 (Local Ollama llama3.2) for offline private queries, fallback Tier 2 (Cloud Pollinations OpenAI) for zero-auth remote reasoning, and a final Tier 3 (Local Heuristic NLP) to guarantee structural summaries under any network conditions.</p>
+                </div>
+                {/* Feature 4 */}
+                <div className="feature-card">
+                  <div className="feature-icon-box">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                   </div>
-                  <h3 className="feature-name">100% Fail-Safe Redirection</h3>
-                  <p className="feature-desc">Includes a fail-fast 3-second Coral timeout. If a query times out or fails, the backend instantly runs direct REST API fetches to protect layouts.</p>
+                  <h3 className="feature-name">Reliability & Fallbacks</h3>
+                  <p className="feature-desc">Fail-safe 3-second request routing. If a WSL query times out or fails, TOP instantly triggers REST API fallback fetches to ensure absolute layout integrity.</p>
                 </div>
               </div>
             </section>
