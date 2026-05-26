@@ -96,22 +96,7 @@ body {
   color: white;
 }
 
-.nav-item:hover::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  left: 100%;
-  top: 50%;
-  transform: translateY(-50%);
-  margin-left: 12px;
-  background: var(--text-main);
-  color: var(--bg-main);
-  padding: 6px 10px;
-  border-radius: 4px;
-  font-size: 11px;
-  white-space: nowrap;
-  z-index: 100;
-  box-shadow: var(--shadow);
-}
+
 
 .card {
   background-color: var(--bg-card);

@@ -737,22 +737,7 @@ function App() {
           color: white;
         }
 
-        .nav-item:hover::after {
-          content: attr(data-tooltip);
-          position: absolute;
-          left: 100%;
-          top: 50%;
-          transform: translateY(-50%);
-          margin-left: 12px;
-          background: var(--text-main);
-          color: var(--bg-main);
-          padding: 6px 10px;
-          border-radius: 4px;
-          font-size: 11px;
-          white-space: nowrap;
-          z-index: 100;
-          box-shadow: var(--shadow);
-        }
+
 
         .card {
           background-color: var(--bg-card);
@@ -1232,7 +1217,7 @@ function App() {
           <div
             className={`nav-item ${view === 'dashboard' ? 'active' : ''}`}
             onClick={() => setView('dashboard')}
-            data-tooltip="Main tools for developers."
+            title="Main tools for developers."
           >
             <LayoutDashboard size={18} />
             <span>Dashboard</span>
@@ -1240,7 +1225,7 @@ function App() {
           <div
             className={`nav-item ${view === 'database' ? 'active' : ''}`}
             onClick={() => setView('database')}
-            data-tooltip="Write and run custom SQL queries via Coral."
+            title="Write and run custom SQL queries via Coral."
           >
             <TerminalSquare size={18} />
             <span>Query Console</span>
@@ -1248,7 +1233,7 @@ function App() {
           <div
             className={`nav-item ${view === 'debug_assistant' ? 'active' : ''}`}
             onClick={() => setView('debug_assistant')}
-            data-tooltip="Search cross-platform debug history."
+            title="Search cross-platform debug history."
           >
             <HelpCircle size={18} />
             <span>Debug Assistant</span>
@@ -1256,7 +1241,7 @@ function App() {
           <div
             className={`nav-item ${view === 'setup' ? 'active' : ''}`}
             onClick={() => setView('setup')}
-            data-tooltip="Configure your API keys."
+            title="Configure your API keys."
           >
             <Settings size={18} />
             <span>Setup</span>
@@ -1273,7 +1258,7 @@ function App() {
                 key={tool.id}
                 className={`nav-item ${activeTool.id === tool.id ? 'active' : ''}`}
                 onClick={() => handleToolSwitch(tool)}
-                data-tooltip={tool.tooltip}
+                title={tool.tooltip}
               >
                 <tool.icon size={18} />
                 <span>{tool.name}</span>
@@ -1684,15 +1669,25 @@ function App() {
                         <div 
                           onClick={() => toggleTable(fullTableName)}
                           onDoubleClick={() => insertTextAtCursor(fullTableName)}
-                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}
+                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', minWidth: 0 }}
                         >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <Database size={14} style={{ color: 'var(--accent)' }} />
-                            <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-main)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flex: 1 }}>
+                            <Database size={14} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+                            <span 
+                              title={table.table_name}
+                              style={{ 
+                                fontSize: '13px', 
+                                fontWeight: '600', 
+                                color: 'var(--text-main)',
+                                textOverflow: 'ellipsis',
+                                overflow: 'hidden',
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
                               {table.table_name}
                             </span>
                           </div>
-                          <span style={{ fontSize: '10px', color: 'var(--accent)', background: 'rgba(59, 130, 246, 0.1)', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>
+                          <span style={{ fontSize: '10px', color: 'var(--accent)', background: 'rgba(59, 130, 246, 0.1)', padding: '2px 6px', borderRadius: '4px', fontWeight: '700', flexShrink: 0 }}>
                             {table.schema_name}
                           </span>
                         </div>
