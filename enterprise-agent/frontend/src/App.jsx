@@ -1339,12 +1339,12 @@ function App() {
         >
           {isSidebarCollapsed ? (
             <img 
-              src="/logo_tree.jpg" 
+              src="/logo_tree.jpg?v=3" 
               alt="TOP Tree Logo" 
               className="brand-logo-img"
               style={{ 
-                width: '48px', 
-                height: '48px', 
+                width: '52px', 
+                height: '52px', 
                 display: 'block',
                 transition: 'transform 0.2s ease'
               }} 
@@ -1352,14 +1352,14 @@ function App() {
               onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
             />
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', width: '100%' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', width: '100%' }}>
               <img 
-                src="/logo_tree.jpg" 
+                src="/logo_tree.jpg?v=3" 
                 alt="TOP Tree Logo" 
                 className="brand-logo-img"
                 style={{ 
-                  width: '96px', 
-                  height: '96px',
+                  width: '120px', 
+                  height: '120px',
                   transition: 'transform 0.2s ease'
                 }}
                 onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.04)'}
