@@ -1,39 +1,68 @@
-# Coral Enterprise Agent
+# 🚀 Team Optimization Portal (TOP)
+### *Powered by the Coral Query Engine*
 
-A premium, high-performance, and resilient developer intelligence workspace designed to convert complex, jargon-heavy developer database rows, stack trace logs, and pipeline events into structured, plain-English summaries. Powered by the Coral query engine inside WSL and a robust local/cloud LLM orchestration layer.
+Welcome to the **Team Optimization Portal (TOP)**—an enterprise-grade Developer Intelligence & Incident Response Workspace. TOP is engineered to convert complex, jargon-heavy developer database rows, stack trace logs, and pipeline events into highly structured, plain-English summaries for developers and managers alike.
+
+At the core of TOP's speed, unified data modeling, and performance lies the **Coral Query Engine**—a revolutionary CLI-driven SQL translation framework running inside WSL that treats external APIs as high-performance database schemas.
 
 ---
 
-## 🚀 Key Features & Highlights
+## 💎 The Coral Engine: The Crowning Jewel of TOP
+Traditional engineering dashboards suffer from sluggishness, APIs ratelimiting, and convoluted cross-platform integration models. **Team Optimization Portal solves this entirely by standardizing all data access on Coral.** 
 
-### 1. Resilient Triple-Tier AI Summarizer Agent
-Translates dense, verbose developer tracebacks, git commits, and raw database rows into structured plain-English bullets (Overview, Key Impacts, Action Items) for managers and developers:
-* **Tier 1 (Local Ollama):** Queries your local `llama3.2` instance offline for total data privacy.
-* **Tier 2 (Cloud AI):** If local Ollama is offline or loading, it instantly routes to a keyless cloud AI model using spoofed browser headers to bypass rate-limiting Cloudflare firewalls.
-* **Tier 3 (Local Heuristics):** If fully offline, a Python NLP regex translation engine extracts and formats summaries—**working 100% of the time, offline and forever.**
+Here is why **Coral** is the ultimate technical foundation of TOP:
 
-### 2. Interactive Dual-Tab Accordion Drawers
-* Cards with multi-line logs render a **"View In-depth Analysis"** drawer.
-* Clicking the drawer fetches the summary asynchronously (keeping initial page rendering under 20ms) and unlocks two interactive tabs:
-  1. **`✨ AI Agent Explanation`** (parsed markdown bullets, bold headers, and custom JSX typography).
-  2. **`💻 Raw Developer Logs`** (unmodified, full-fidelity raw logs, stack traces, and database tables).
+### 1. Unified SQL Adapter for Disparate Platforms
+Coral transforms external systems (GitHub REST, Sentry issues, Jira boards, Slack channels, StackOverflow questions) into standard relational database tables. Instead of writing multiple SDK calls and formatting custom payloads, TOP queries EVERYTHING with standard, lightning-fast SQL:
+* Query active GitHub pull requests:  
+  `SELECT number, title, state, user__login FROM github.pulls`
+* Query Sentry crash logs:  
+  `SELECT id, title, last_seen, level FROM sentry.issues`
+* Query Jira issues:  
+  `SELECT key, summary FROM jira.issues`
 
-### 3. Global Persistent Parameter URL Input
-* Eliminates the friction of copy-pasting your target repository URL repeatedly when moving between tools.
-* The URL input is **global and shared across all dashboard features**.
-* Switching tabs retains the target repository URL, while perfectly caching each tool's executed card outputs, expand states, and toggled tabs in the background.
+### 2. High-Performance WSL Ubuntu-24.04 CLI Pipeline
+All queries are executed as asynchronous subprocess executions against Coral's native WSL pipeline. This keeps execution times **under 20ms** for cached schemas, guaranteeing instant workspace responsiveness.
 
-### 4. Premium Developer Cards & Metric Pills Grid
-* Replaced boring raw SQL database tables with a responsive CSS grid of beautiful glassmorphic cards.
-* **Clickable Sources:** Card titles are hyperlinked directly to their respective GitHub commits, PRs, or issue pages.
-* **Metric Pills:** Evaluates log events in the browser to display vibrant metric pills for reviews 💬, CI runs 🔄, comment dates 📅, Slack mentions, and Jira links.
-* **Layout Protection:** Numerical values are auto-formatted, internal database tags are filtered out, and badges with values exceeding 60 characters are automatically truncated to keep cards perfectly aligned.
+### 3. Bulletproof Fail-Fast 3-Second Timeout & REST Redirect
+WSL database engines can hang on slow connections. TOP protects layouts with a **fail-fast 3-second timeout** on WSL Coral queries. If a query times out or WSL is offline, TOP intercepts the exception in under 100ms and redirects to direct GitHub/Jira REST endpoints, mapping response bodies to match Coral's schemas perfectly. This gives you **100% platform uptime**, offline or online.
 
-### 5. Fail-Fast 3-Second Timeout & Direct REST Redirection
-* SQL queries against large repositories inside WSL can trigger gateway timeouts.
-* We implemented a **fail-fast 3-second limit** on WSL Coral SQL executions.
-* If Coral takes longer than 3 seconds or fails, the backend instantly intercepts the query and runs direct REST API fetches to GitHub in under 100ms.
-* Mapped REST payloads to support both raw REST keys and full database schemas (`number`, `sha`, `user__login`, etc.) to prevent frontend crashes, and resolved silent query case-sensitivity match bugs.
+### 4. Direct WSL Secrets Sync
+When you connect integrations, TOP automatically provisions WSL environment credentials inside Coral:
+```bash
+wsl -d Ubuntu-24.04 -- bash -c "GITHUB_TOKEN='token' /root/.local/bin/coral source add github"
+```
+This writes credentials directly to `/root/.config/coral/workspaces/default/sources/` inside WSL, ensuring automated authentication state preservation.
+
+---
+
+## 🌟 Key Features & Highlights
+
+### 💻 1. Interactive SQL Query Console (Playground)
+Turn your workspace into a live database terminal:
+* **Asynchronous Schema Tree Explorer**: Browse all available schemas and tables connected via Coral. Clicking a table card dynamically queries WSL for column schemas (`/api/columns/{tableName}`) and lists fields with types (e.g., `number (INT)`, `title (VARCHAR)`).
+* **Double-Click Auto-Inject**: Double-click any table or column name in the tree to automatically inject it into the editor at your cursor.
+* **Context-Aware Dynamic Parameter Injection**: Place `{{OWNER}}`, `{{REPO}}`, or `{{QUERY}}` in your SQL editor. The console automatically interpolates these variables with whatever target link is currently active in your top bar!
+* **Dynamic Table & Auditing**: Inspect results inside a premium table with in-browser filtering, Copy JSON utilities, and a row counter.
+* **Shell Terminal Box**: WSL errors or raw command outputs are rendered inside a glowing dark CLI shell block using monospace amber/green fonts to mimic real system logs.
+
+### ⚙️ 2. Control Center (Setup Tab)
+Manage all Coral-connected resources from a single, powerful panel:
+* **Active Connections List**: Monitor live connection integrity (`✅ Active` or `❌ Inactive`) for Sentry, GitHub, Jira, and Slack. Easily run test ping checks or completely **Remove** credentials with a secure click.
+* **Global Agent Preferences**: Set default lookback days for Handover timelines, severity filters for Security Scans, and Slack incident monitoring channels.
+* **Cache Management**: Monitor active Coral cached lookups (in MB/queries) and safely flush SQL cache folders with a confirmation-secured **Clear Cache** button.
+* **Interactive Audit Logs (Query History)**: View a trail of every query executed inside the playground. Clicking **Load Editor** instantly copy-pastes a query back into the SQL editor and switches tabs!
+
+### 🔄 3. Resilient Triple-Tier AI Summarizer
+Translates verbose stack traces, database rows, and commits into plain-English summaries (Overview, Key Impacts, Action Items) for management:
+* **Tier 1 (Local Ollama):** Queries a local `llama3.2` instance offline for 100% data privacy.
+* **Tier 2 (Cloud AI):** Falls back to Pollinations Cloud AI using spoofed browser headers to bypass firewalls.
+* **Tier 3 (Local Heuristics):** If fully offline, a regex-based NLP translation engine extracts summaries—**working 100% of the time, offline and forever.**
+
+### 💬 4. Premium Cards & Metric Pills
+* **Responsive CSS Grid:** Replaces dry database tables with modern, responsive cards.
+* **Clickable Sources:** Hyperlinks directly to GitHub pull requests, commits, Sentry events, or Jira issues.
+* **Browser Metric Pills:** Automatically parses event text in the browser to display glowing status pills for reviews 💬, CI runs 🔄, comment dates, Slack mentions, and Jira tickets.
 
 ---
 
@@ -50,26 +79,13 @@ graph TD
 
 ---
 
-## ⚙️ Service Connection Lifecycle (Setup Tab)
-
-The **Setup** tab allows you to dynamically hook up external integrations. Here is how a connection works:
-1. **Input:** You enter your token (along with extra fields like Jira Base URL/Email or Sentry Org Slug) and click **Connect**.
-2. **Browser Persistence:** Tokens are securely cached in the browser's secure `localStorage` (e.g. `coral_github_token` and `coral_sentry_org`), keeping your session active across page reloads.
-3. **WSL Sync:** The backend receives the token and automatically executes a subprocess inside your WSL Ubuntu-24.04 instance to configure Coral:
-   ```bash
-   wsl -d Ubuntu-24.04 -- bash -c "GITHUB_TOKEN='your_token' /root/.local/bin/coral source add github"
-   ```
-4. **Dual-Sync Boot:** On startup, the Python server reads existing configs directly from the WSL filesystem, and the frontend syncs browser `localStorage` tokens upon mounting.
-
----
-
 ## 💻 Getting Started
 
 ### Prerequisites
 * **Python 3.10+** (with `fastapi`, `uvicorn`, `pydantic`, `jinja2`)
 * **Node.js 18+** & **npm**
 * **WSL Ubuntu-24.04** with the Coral CLI installed
-* **Ollama** running locally (optional, but recommended for offline AI summaries)
+* **Ollama** running locally (optional, for offline local AI summaries)
 
 ### Running the Application
 
@@ -87,11 +103,4 @@ The **Setup** tab allows you to dynamically hook up external integrations. Here 
    cd enterprise-agent/frontend
    npm run dev
    ```
-   Open `http://localhost:5173` in your browser to explore the dashboard!
-
-3. **Verify Integrations & Run Tests:**
-   You can test the PR Reaper logic and credentials loading directly from the command line using the standalone test script:
-   ```bash
-   cd enterprise-agent/backend
-   python test_reaper.py
-   ```
+   Open `http://localhost:5173` in your browser to explore the Team Optimization Portal dashboard!
