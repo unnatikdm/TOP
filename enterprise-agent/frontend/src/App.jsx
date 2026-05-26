@@ -137,6 +137,16 @@ function App() {
   const [summarizing, setSummarizing] = useState({});
   const [activeTabs, setActiveTabs] = useState({});
 
+  // Debug Assistant States
+  const [debugQuery, setDebugQuery] = useState('');
+  const [debugResults, setDebugResults] = useState(null);
+  const [debugLoading, setDebugLoading] = useState(false);
+  const [debugError, setDebugError] = useState(null);
+  const [debugExpandedCards, setDebugExpandedCards] = useState({});
+  const [debugSummaries, setDebugSummaries] = useState({});
+  const [debugSummarizing, setDebugSummarizing] = useState({});
+  const [debugActiveTabs, setDebugActiveTabs] = useState({});
+
   const toggleCard = async (index, message, title, category) => {
     const isExpanding = !expandedCards[index];
     setExpandedCards(prev => ({
@@ -159,6 +169,63 @@ function App() {
       } finally {
         setSummarizing(prev => ({ ...prev, [index]: false }));
       }
+    }
+  };
+
+  const toggleDebugCard = async (index, message, title, category) => {
+    const isExpanding = !debugExpandedCards[index];
+    setDebugExpandedCards(prev => ({
+      ...prev,
+      [index]: isExpanding
+    }));
+
+    if (isExpanding && !debugSummaries[index] && message) {
+      setDebugSummarizing(prev => ({ ...prev, [index]: true }));
+      try {
+        const response = await fetch('http://localhost:8000/api/summarize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message, title, category })
+        });
+        const data = await response.json();
+        setDebugSummaries(prev => ({ ...prev, [index]: data.summary }));
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setDebugSummarizing(prev => ({ ...prev, [index]: false }));
+      }
+    }
+  };
+
+  const executeSearch = async (queryToSearch) => {
+    const searchVal = queryToSearch !== undefined ? queryToSearch : debugQuery;
+    if (!searchVal.trim()) return;
+
+    setDebugLoading(true);
+    setDebugError(null);
+    setDebugResults(null);
+    setDebugExpandedCards({});
+    setDebugSummaries({});
+    setDebugSummarizing({});
+    setDebugActiveTabs({});
+
+    try {
+      const response = await fetch('http://localhost:8000/api/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: searchVal })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setDebugError(data.detail || data.message || 'Failed to complete search.');
+      } else {
+        setDebugResults(data);
+      }
+    } catch (err) {
+      console.error(err);
+      setDebugError(err.message || 'Request failed.');
+    } finally {
+      setDebugLoading(false);
     }
   };
 
@@ -757,6 +824,195 @@ function App() {
         .pulse {
           animation: pulse 1.5s ease-in-out infinite !important;
         }
+
+        /* Debug Assistant Styles */
+        .debug-search-section {
+          background: var(--bg-card) !important;
+          border: 1px solid var(--border) !important;
+          border-radius: 16px !important;
+          padding: 32px !important;
+          box-shadow: var(--shadow) !important;
+          margin-bottom: 32px !important;
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 16px !important;
+          position: relative !important;
+          overflow: hidden !important;
+        }
+
+        .debug-search-section::before {
+          content: '' !important;
+          position: absolute !important;
+          top: -50% !important;
+          left: -50% !important;
+          width: 200% !important;
+          height: 200% !important;
+          background: radial-gradient(circle, rgba(59,130,246,0.03) 0%, transparent 60%) !important;
+          pointer-events: none !important;
+        }
+
+        .debug-search-input-container {
+          position: relative !important;
+          display: flex !important;
+          align-items: center !important;
+          gap: 12px !important;
+          width: 100% !important;
+        }
+
+        .debug-search-input-wrapper {
+          position: relative !important;
+          flex: 1 !important;
+        }
+
+        .debug-search-input-icon {
+          position: absolute !important;
+          left: 16px !important;
+          top: 50% !important;
+          transform: translateY(-50%) !important;
+          color: var(--text-dim) !important;
+          pointer-events: none !important;
+          transition: color 0.2s !important;
+        }
+
+        .debug-search-input {
+          width: 100% !important;
+          padding: 14px 14px 14px 48px !important;
+          border-radius: 12px !important;
+          border: 1px solid var(--border) !important;
+          background-color: var(--bg-input) !important;
+          color: var(--text-main) !important;
+          outline: none !important;
+          font-size: 15px !important;
+          font-family: 'Inter', sans-serif !important;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+          box-shadow: inset 0 2px 4px rgba(0,0,0,0.02) !important;
+        }
+
+        .debug-search-input:focus {
+          border-color: var(--accent) !important;
+          background-color: var(--bg-card) !important;
+          box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15), inset 0 2px 4px rgba(0,0,0,0.01) !important;
+        }
+
+        .debug-search-input:focus + .debug-search-input-icon {
+          color: var(--accent) !important;
+        }
+
+        .debug-quick-links {
+          display: flex !important;
+          align-items: center !important;
+          gap: 8px !important;
+          flex-wrap: wrap !important;
+          margin-top: 4px !important;
+        }
+
+        .debug-quick-link-label {
+          font-size: 12px !important;
+          color: var(--text-dim) !important;
+          font-weight: 500 !important;
+        }
+
+        .debug-quick-link-btn {
+          font-size: 12px !important;
+          color: var(--accent) !important;
+          background: rgba(59, 130, 246, 0.06) !important;
+          border: 1px solid rgba(59, 130, 246, 0.1) !important;
+          padding: 4px 10px !important;
+          border-radius: 6px !important;
+          cursor: pointer !important;
+          transition: all 0.2s ease !important;
+          font-weight: 500 !important;
+        }
+
+        .debug-quick-link-btn:hover {
+          background: rgba(59, 130, 246, 0.12) !important;
+          border-color: var(--accent) !important;
+          transform: translateY(-1px) !important;
+        }
+
+        .ai-insights-glowing-card {
+          background: linear-gradient(135deg, rgba(59, 130, 246, 0.07) 0%, rgba(99, 102, 241, 0.07) 100%) !important;
+          border: 1px solid rgba(59, 130, 246, 0.25) !important;
+          border-radius: 16px !important;
+          padding: 28px !important;
+          box-shadow: 0 10px 30px -10px rgba(59, 130, 246, 0.15) !important;
+          margin-bottom: 32px !important;
+          position: relative !important;
+          overflow: hidden !important;
+          transition: all 0.3s ease !important;
+        }
+
+        [data-theme='dark'] .ai-insights-glowing-card {
+          background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(99, 102, 241, 0.15) 100%) !important;
+          border-color: rgba(59, 130, 246, 0.35) !important;
+          box-shadow: 0 15px 40px -10px rgba(0, 0, 0, 0.5), 0 0 20px 2px rgba(59, 130, 246, 0.05) !important;
+        }
+
+        .ai-insights-glowing-card::after {
+          content: '' !important;
+          position: absolute !important;
+          top: 0 !important;
+          right: 0 !important;
+          width: 150px !important;
+          height: 150px !important;
+          background: radial-gradient(circle, rgba(59,130,246,0.15) 0%, transparent 70%) !important;
+          pointer-events: none !important;
+        }
+
+        .debug-results-header {
+          display: flex !important;
+          justify-content: space-between !important;
+          align-items: center !important;
+          margin-bottom: 20px !important;
+          border-bottom: 1px solid var(--border) !important;
+          padding-bottom: 12px !important;
+        }
+
+        .debug-results-count {
+          font-size: 14px !important;
+          color: var(--text-dim) !important;
+          font-weight: 500 !important;
+        }
+
+        .debug-source-groups {
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 28px !important;
+        }
+
+        .debug-source-group {
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 16px !important;
+        }
+
+        .debug-source-title {
+          font-size: 13px !important;
+          font-weight: 700 !important;
+          letter-spacing: 0.05em !important;
+          text-transform: uppercase !important;
+          display: flex !important;
+          align-items: center !important;
+          gap: 8px !important;
+          padding-left: 4px !important;
+        }
+
+        .debug-source-title.sentry { color: #f87171 !important; }
+        .debug-source-title.slack { color: #34d399 !important; }
+        .debug-source-title.jira { color: #60a5fa !important; }
+        .debug-source-title.github { color: #a78bfa !important; }
+
+        .debug-cards-grid {
+          display: grid !important;
+          grid-template-columns: 1fr !important;
+          gap: 16px !important;
+        }
+
+        @media (min-width: 1024px) {
+          .debug-cards-grid {
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)) !important;
+          }
+        }
       `}</style>
 
       <aside className="sidebar">
@@ -783,6 +1039,14 @@ function App() {
           >
             <Database size={18} />
             <span>Database</span>
+          </div>
+          <div
+            className={`nav-item ${view === 'debug_assistant' ? 'active' : ''}`}
+            onClick={() => setView('debug_assistant')}
+            data-tooltip="Search cross-platform debug history."
+          >
+            <HelpCircle size={18} />
+            <span>Debug Assistant</span>
           </div>
           <div
             className={`nav-item ${view === 'setup' ? 'active' : ''}`}
@@ -1169,6 +1433,261 @@ function App() {
                 </div>
               )}
             </div>
+          </div>
+        ) : view === 'debug_assistant' ? (
+          <div>
+            <header style={{ marginBottom: '32px' }}>
+              <h1 style={{ fontSize: '24px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <HelpCircle size={28} style={{ color: 'var(--accent)' }} /> Debug Assistant
+              </h1>
+              <p style={{ color: 'var(--text-dim)', marginTop: '4px' }}>
+                Ask a question to search across Sentry exceptions, Slack messages, Jira tickets, and GitHub issues.
+              </p>
+            </header>
+
+            <section className="debug-search-section">
+              <div className="debug-search-input-container">
+                <div className="debug-search-input-wrapper">
+                  <input
+                    type="text"
+                    className="debug-search-input"
+                    value={debugQuery}
+                    onChange={(e) => setDebugQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') executeSearch();
+                    }}
+                    placeholder="e.g. DatabaseError: connection pool exhausted"
+                  />
+                  <Search className="debug-search-input-icon" size={20} />
+                </div>
+                <button 
+                  className="btn btn-primary" 
+                  onClick={() => executeSearch()} 
+                  disabled={debugLoading}
+                  style={{ height: '48px', padding: '0 24px', borderRadius: '12px' }}
+                >
+                  {debugLoading ? <Zap className="spin" size={18} /> : <Search size={18} />}
+                  {debugLoading ? 'Searching...' : 'Search'}
+                </button>
+              </div>
+
+              <div className="debug-quick-links">
+                <span className="debug-quick-link-label">Suggested searches:</span>
+                <button 
+                  className="debug-quick-link-btn"
+                  onClick={() => {
+                    setDebugQuery('PostgreSQL connection pool exhausted');
+                    executeSearch('PostgreSQL connection pool exhausted');
+                  }}
+                >
+                  PostgreSQL connection pool exhausted
+                </button>
+                <button 
+                  className="debug-quick-link-btn"
+                  onClick={() => {
+                    setDebugQuery('NullPointerException in session auth');
+                    executeSearch('NullPointerException in session auth');
+                  }}
+                >
+                  NullPointerException in session auth
+                </button>
+              </div>
+            </section>
+
+            {debugLoading && (
+              <div style={{ textAlign: 'center', padding: '60px 40px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', boxShadow: 'var(--shadow)', marginBottom: '32px' }}>
+                <Zap size={40} className="spin" style={{ color: 'var(--accent)', marginBottom: '16px' }} />
+                <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '8px' }} className="pulse">Searching unified company history...</h3>
+                <p style={{ fontSize: '13px', color: 'var(--text-dim)', maxWidth: '400px', margin: '0 auto', lineHeight: '1.5' }}>
+                  Querying real-time Sentry issues, Slack channels, Jira boards, and GitHub repositories to find who faced this before.
+                </p>
+              </div>
+            )}
+
+            {debugError && (
+              <div style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '16px 20px', borderRadius: '12px', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+                <AlertCircle size={20} />
+                <div style={{ fontSize: '14px', fontWeight: '500' }}>{debugError}</div>
+              </div>
+            )}
+
+            {debugResults && !debugLoading && (
+              <div>
+                {/* 1. AI Insights Glowing Card */}
+                {debugResults.summary && (
+                  <div className="ai-insights-glowing-card">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--accent)', fontWeight: '800', fontSize: '18px', marginBottom: '16px' }}>
+                      <Cpu size={22} className="pulse" />
+                      <span>AI Debug Assistant Insights</span>
+                    </div>
+                    <div style={{ borderLeft: '3px solid var(--accent)', paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {renderMarkdown(debugResults.summary)}
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. Grouped Cards Grid */}
+                <div className="debug-results-header">
+                  <span className="debug-results-count">
+                    Found {debugResults.results?.length || 0} matching logs and tickets across connected sources
+                  </span>
+                </div>
+
+                {debugResults.results && debugResults.results.length > 0 ? (
+                  <div className="debug-source-groups">
+                    {['Sentry Exception', 'Jira Ticket', 'Slack Discussion', 'GitHub Issue'].map((sourceCategory) => {
+                      const categoryMatches = debugResults.results.filter(item => item.category === sourceCategory);
+                      if (categoryMatches.length === 0) return null;
+
+                      let sectionClass = 'sentry';
+                      let SectionIcon = ShieldAlert;
+                      if (sourceCategory.includes('Slack')) { sectionClass = 'slack'; SectionIcon = MessageSquare; }
+                      if (sourceCategory.includes('Jira')) { sectionClass = 'jira'; SectionIcon = Link; }
+                      if (sourceCategory.includes('GitHub')) { sectionClass = 'github'; SectionIcon = AlertCircle; }
+
+                      return (
+                        <div key={sourceCategory} className="debug-source-group">
+                          <h2 className={`debug-source-title ${sectionClass}`}>
+                            <SectionIcon size={16} />
+                            {sourceCategory}s ({categoryMatches.length})
+                          </h2>
+                          <div className="debug-cards-grid">
+                            {categoryMatches.map((res) => {
+                              const globalIdx = debugResults.results.indexOf(res);
+                              const title = res.title || res.category || res.status || 'Result';
+                              const statusValue = res.reason || res.status || res.state || 'N/A';
+                              const isOpen = statusValue.toString().toLowerCase().includes('open') || 
+                                            statusValue.toString().toLowerCase().includes('action') || 
+                                            statusValue.toString().toLowerCase().includes('unresolved');
+
+                              return (
+                                <div key={globalIdx} className="result-card">
+                                  <div className="result-card-header" style={{ marginBottom: '8px' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                      {res.url ? (
+                                        <a href={res.url} target="_blank" rel="noopener noreferrer" className="result-card-title">
+                                          {title}
+                                          <Link size={14} style={{ opacity: 0.5 }} />
+                                        </a>
+                                      ) : (
+                                        <h3 className="result-card-title">{title}</h3>
+                                      )}
+                                    </div>
+                                    <span className={`status-tag ${isOpen ? 'open' : 'closed'}`}>
+                                      {statusValue}
+                                    </span>
+                                  </div>
+
+                                  {res.created_at && (
+                                    <div style={{ fontSize: '12px', color: 'var(--text-dim)', marginBottom: '12px' }}>
+                                      Last seen: <strong>{new Date(res.created_at).toLocaleDateString(undefined, { dateStyle: 'medium' })}</strong>
+                                    </div>
+                                  )}
+
+                                  {res.message && (() => {
+                                    const { summary, details } = getOutputBreakdown(res.message, title, res.category);
+                                    const isExpanded = !!debugExpandedCards[globalIdx];
+                                    
+                                    return (
+                                      <div className="output-container">
+                                        <p className="result-card-desc">{summary}</p>
+                                        
+                                        {details && (
+                                          <div style={{ marginTop: '8px' }}>
+                                            <button 
+                                              className="btn btn-secondary btn-xs"
+                                              onClick={() => toggleDebugCard(globalIdx, res.message, title, res.category)}
+                                              style={{ 
+                                                display: 'inline-flex', 
+                                                alignItems: 'center', 
+                                                gap: '4px',
+                                                padding: '4px 8px',
+                                                fontSize: '11px',
+                                                height: 'auto',
+                                                borderRadius: '4px'
+                                              }}
+                                            >
+                                              {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                              {isExpanded ? 'Hide Details' : 'View In-depth Analysis'}
+                                            </button>
+                                            
+                                            {isExpanded && (
+                                              <div className="expandable-details">
+                                                {debugSummarizing[globalIdx] ? (
+                                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 0', color: 'var(--accent)' }}>
+                                                    <Zap className="spin" size={14} />
+                                                    <span className="pulse" style={{ fontSize: '12px', fontWeight: '600', fontFamily: "'Inter', sans-serif" }}>
+                                                      ✨ AI Agent is digesting the technical logs...
+                                                    </span>
+                                                  </div>
+                                                ) : (
+                                                  <>
+                                                    <div style={{ display: 'flex', gap: '12px', borderBottom: '1px solid var(--border)', marginBottom: '12px', paddingBottom: '6px' }}>
+                                                      <button 
+                                                        onClick={() => setDebugActiveTabs(prev => ({ ...prev, [globalIdx]: 'ai' }))}
+                                                        style={{
+                                                          background: 'none',
+                                                          border: 'none',
+                                                          padding: '4px 8px',
+                                                          fontSize: '11px',
+                                                          fontWeight: '700',
+                                                          color: (debugActiveTabs[globalIdx] || 'ai') === 'ai' ? 'var(--accent)' : 'var(--text-dim)',
+                                                          borderBottom: (debugActiveTabs[globalIdx] || 'ai') === 'ai' ? '2px solid var(--accent)' : 'none',
+                                                          cursor: 'pointer',
+                                                          fontFamily: "'Inter', sans-serif"
+                                                        }}
+                                                      >
+                                                        ✨ AI Agent Explanation
+                                                      </button>
+                                                      <button 
+                                                        onClick={() => setDebugActiveTabs(prev => ({ ...prev, [globalIdx]: 'raw' }))}
+                                                        style={{
+                                                          background: 'none',
+                                                          border: 'none',
+                                                          padding: '4px 8px',
+                                                          fontSize: '11px',
+                                                          fontWeight: '700',
+                                                          color: (debugActiveTabs[globalIdx] || 'raw') === 'raw' ? 'var(--accent)' : 'var(--text-dim)',
+                                                          borderBottom: (debugActiveTabs[globalIdx] || 'raw') === 'raw' ? '2px solid var(--accent)' : 'none',
+                                                          cursor: 'pointer',
+                                                          fontFamily: "'Inter', sans-serif"
+                                                        }}
+                                                      >
+                                                        💻 Raw Developer Logs
+                                                      </button>
+                                                    </div>
+                                                    
+                                                    {(debugActiveTabs[globalIdx] || 'ai') === 'ai' ? (
+                                                      <div style={{ fontFamily: "'Inter', sans-serif", whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
+                                                        {renderMarkdown(debugSummaries[globalIdx])}
+                                                      </div>
+                                                    ) : (
+                                                      details
+                                                    )}
+                                                  </>
+                                                )}
+                                              </div>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '60px', border: '2px dashed var(--border)', borderRadius: '16px', color: 'var(--text-dim)', background: 'var(--bg-card)' }}>
+                    <p style={{ fontSize: '14px', fontWeight: '500' }}>No historical logs or tickets found for this query.</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <div>
