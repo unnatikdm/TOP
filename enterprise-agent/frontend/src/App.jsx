@@ -1306,14 +1306,14 @@ function App() {
         >
           {isSidebarCollapsed ? (
             <img 
-              src="/logo_tree.jpg" 
-              alt="TOP Tree Logo" 
+              src="/logo_top.jpg" 
+              alt="TOP Logo" 
               style={{ 
-                width: '40px', 
-                height: '40px', 
-                borderRadius: '8px', 
-                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.25)',
-                border: '1px solid rgba(59, 130, 246, 0.25)',
+                width: '48px', 
+                height: 'auto', 
+                borderRadius: '4px', 
+                boxShadow: '0 4px 10px rgba(59, 130, 246, 0.2)',
+                border: '1px solid rgba(59, 130, 246, 0.2)',
                 transition: 'transform 0.2s ease',
                 display: 'block'
               }} 
@@ -1321,24 +1321,33 @@ function App() {
               onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
             />
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', width: '100%' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', width: '100%' }}>
               <img 
                 src="/logo_top.jpg" 
                 alt="TOP Logo" 
                 style={{ 
-                  height: '52px', 
+                  height: '60px', 
                   maxWidth: '100%', 
                   objectFit: 'contain',
                   borderRadius: '6px',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
                   transition: 'transform 0.2s ease'
                 }}
                 onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.04)'}
                 onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
               />
-              <span style={{ fontSize: '9px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--accent)', whiteSpace: 'nowrap' }}>
-                Team Optimization Portal
-              </span>
+              <h2 style={{ 
+                fontSize: '15px', 
+                fontWeight: '800', 
+                textTransform: 'uppercase', 
+                letterSpacing: '0.04em', 
+                color: 'var(--accent)', 
+                textAlign: 'center',
+                lineHeight: '1.2',
+                margin: '0'
+              }}>
+                Team Optimization<br />Portal
+              </h2>
             </div>
           )}
         </div>
