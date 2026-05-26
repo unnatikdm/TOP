@@ -706,13 +706,8 @@ function App() {
         }
 
         .brand-logo-img {
-          transition: transform 0.2s ease, filter 0.3s ease;
-          mix-blend-mode: multiply;
-        }
-
-        [data-theme='dark'] .brand-logo-img {
-          filter: invert(1) hue-rotate(180deg);
-          mix-blend-mode: screen;
+          transition: transform 0.2s ease;
+          display: block;
         }
 
         body {
@@ -1339,12 +1334,12 @@ function App() {
         >
           {isSidebarCollapsed ? (
             <img 
-              src="/logo_tree.jpg?v=3" 
+              src="/logo_tree.png" 
               alt="TOP Tree Logo" 
               className="brand-logo-img"
               style={{ 
-                width: '52px', 
-                height: '52px', 
+                width: '56px', 
+                height: '56px', 
                 display: 'block',
                 transition: 'transform 0.2s ease'
               }} 
@@ -1353,30 +1348,58 @@ function App() {
             />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', width: '100%' }}>
-              <img 
-                src="/logo_tree.jpg?v=3" 
-                alt="TOP Tree Logo" 
-                className="brand-logo-img"
-                style={{ 
-                  width: '120px', 
-                  height: '120px',
-                  transition: 'transform 0.2s ease'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.04)'}
-                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-              />
-              <h2 style={{ 
-                fontSize: '15px', 
-                fontWeight: '800', 
-                textTransform: 'uppercase', 
-                letterSpacing: '0.04em', 
-                color: 'var(--accent)', 
-                textAlign: 'center',
-                lineHeight: '1.2',
-                margin: '0'
+              {/* T🌳P logo — built in JSX for perfect alignment */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '4px',
+                lineHeight: '1',
               }}>
-                Team Optimization<br />Portal
-              </h2>
+                <span style={{
+                  fontSize: '52px',
+                  fontWeight: '900',
+                  fontFamily: "'Inter', 'Arial', sans-serif",
+                  color: theme === 'dark' ? '#e2e8f0' : '#0d1b3e',
+                  letterSpacing: '-1px',
+                  lineHeight: '1',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}>T</span>
+                <img
+                  src="/logo_tree.png"
+                  alt="O"
+                  style={{
+                    width: '56px',
+                    height: '56px',
+                    display: 'block',
+                    flexShrink: 0,
+                  }}
+                />
+                <span style={{
+                  fontSize: '52px',
+                  fontWeight: '900',
+                  fontFamily: "'Inter', 'Arial', sans-serif",
+                  color: theme === 'dark' ? '#e2e8f0' : '#0d1b3e',
+                  letterSpacing: '-1px',
+                  lineHeight: '1',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}>P</span>
+              </div>
+              {/* Title */}
+              <p style={{
+                fontSize: '11px',
+                fontWeight: '600',
+                textTransform: 'uppercase',
+                letterSpacing: '0.12em',
+                color: 'var(--text-dim)',
+                textAlign: 'center',
+                margin: '0',
+                lineHeight: '1.4',
+              }}>
+                Team Optimization Portal
+              </p>
             </div>
           )}
         </div>
