@@ -58,6 +58,47 @@ body {
   flex-direction: column;
   gap: 24px;
   overflow-y: auto;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar.collapsed {
+  padding: 24px 12px;
+  align-items: center;
+}
+
+.sidebar.collapsed .logo {
+  justify-content: center;
+  margin-top: 50px !important;
+}
+
+.sidebar.collapsed .theme-toggle {
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.sidebar.collapsed .nav-item {
+  justify-content: center;
+  padding: 10px;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  gap: 0;
+}
+
+.sidebar.collapsed .nav-item span {
+  display: none;
+}
+
+.sidebar.collapsed nav p {
+  display: none;
+}
+
+.sidebar.collapsed .nav-item:hover::after {
+  left: 84px;
+}
+
+.sidebar.collapsed .nav-item:hover::before {
+  left: 78px;
 }
 
 .main-content {
