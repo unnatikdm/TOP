@@ -150,6 +150,7 @@ const PRESET_TEMPLATES = [
 
 function App() {
   const [theme, setTheme] = useState('light');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [view, setView] = useState('dashboard'); // 'dashboard', 'database', or 'setup'
   const [activeTool, setActiveTool] = useState(tools[0]);
   const [paramValue, setParamValue] = useState('https://github.com/open-metadata/OpenMetadata');
@@ -633,7 +634,17 @@ function App() {
   };
 
   return (
-    <div className="app-container">
+    <div 
+      className="app-container"
+      style={{ 
+        gridTemplateColumns: isSidebarCollapsed ? '72px 1fr' : '260px 1fr',
+        transition: 'grid-template-columns 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        display: 'grid',
+        height: '100vh',
+        width: '100vw',
+        overflow: 'hidden'
+      }}
+    >
       <style>{`
         :root {
           --bg-main: #f8fafc;
@@ -696,6 +707,47 @@ function App() {
           height: 100%;
           overflow-y: auto;
           position: relative;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .sidebar.collapsed {
+          padding: 24px 12px;
+          align-items: center;
+        }
+
+        .sidebar.collapsed .logo {
+          justify-content: center;
+          margin-top: 50px !important;
+        }
+
+        .sidebar.collapsed .theme-toggle {
+          left: 50%;
+          transform: translateX(-50%);
+        }
+
+        .sidebar.collapsed .nav-item {
+          justify-content: center;
+          padding: 10px;
+          width: 40px;
+          height: 40px;
+          border-radius: 8px;
+          gap: 0;
+        }
+
+        .sidebar.collapsed .nav-item span {
+          display: none;
+        }
+
+        .sidebar.collapsed nav p {
+          display: none;
+        }
+
+        .sidebar.collapsed .nav-item:hover::after {
+          left: 84px;
+        }
+
+        .sidebar.collapsed .nav-item:hover::before {
+          left: 78px;
         }
 
         .main-content {
@@ -1233,12 +1285,62 @@ function App() {
         }
       `}</style>
 
-      <aside className="sidebar">
+      <aside className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
         <button className="theme-toggle" onClick={toggleTheme}>
           {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
         </button>
-        <div className="logo" style={{ marginTop: '40px', fontSize: '15px' }}>
-          <Layers size={24} style={{ flexShrink: 0 }} /> TEAM OPTIMIZATION PORTAL
+        
+        <div 
+          className="logo" 
+          onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          style={{ 
+            marginTop: '30px', 
+            cursor: 'pointer', 
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center', 
+            transition: 'all 0.3s ease',
+            userSelect: 'none',
+            width: '100%'
+          }}
+        >
+          {isSidebarCollapsed ? (
+            <img 
+              src="/logo_tree.jpg" 
+              alt="TOP Tree Logo" 
+              style={{ 
+                width: '40px', 
+                height: '40px', 
+                borderRadius: '8px', 
+                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.25)',
+                border: '1px solid rgba(59, 130, 246, 0.25)',
+                transition: 'transform 0.2s ease',
+                display: 'block'
+              }} 
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.08)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', width: '100%' }}>
+              <img 
+                src="/logo_top.jpg" 
+                alt="TOP Logo" 
+                style={{ 
+                  height: '52px', 
+                  maxWidth: '100%', 
+                  objectFit: 'contain',
+                  borderRadius: '6px',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+                  transition: 'transform 0.2s ease'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.04)'}
+                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+              />
+              <span style={{ fontSize: '9px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--accent)', whiteSpace: 'nowrap' }}>
+                Team Optimization Portal
+              </span>
+            </div>
+          )}
         </div>
 
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -1295,10 +1397,15 @@ function App() {
           </nav>
         )}
 
-        <div style={{ marginTop: 'auto', fontSize: '12px', color: 'var(--text-dim)' }}>
+        <div style={{ marginTop: 'auto', fontSize: '12px', color: 'var(--text-dim)', display: 'flex', justifyContent: 'center', width: '100%' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: backendStatus.coral_installed ? 'var(--success)' : 'var(--danger)' }} />
-            Backend: {backendStatus.coral_installed ? 'Connected' : 'Offline'}
+            <div 
+              style={{ width: '10px', height: '10px', borderRadius: '50%', background: backendStatus.coral_installed ? 'var(--success)' : 'var(--danger)', flexShrink: 0 }} 
+              title={`Backend Status: ${backendStatus.coral_installed ? 'Connected' : 'Offline'}`}
+            />
+            {!isSidebarCollapsed && (
+              <span>Backend: {backendStatus.coral_installed ? 'Connected' : 'Offline'}</span>
+            )}
           </div>
         </div>
       </aside>
