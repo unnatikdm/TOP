@@ -97,10 +97,12 @@ Here is a guide to every powerful visual feature packed into your TOP dashboard:
 * **The Visual Fix:** Extremely long database table names (such as `activity_list_repos_watched_by_user`) used to spill out of their cards and break the layout. 
 * **How it works now:** Long names are now beautifully truncated with an ellipsis (`...`). Hovering your cursor over the table name triggers a clean browser-native tooltip displaying the full name instantly.
 
-### 5. 🏷️ Premium Dark "Flyout" Tooltips (Unclipped!)
-* **What it is:** Hover tips on sidebar items that explain what each action does.
-* **The Visual Fix:** Tooltips used to get chopped off by the browser because the sidebar was forced to scroll vertically. 
-* **How it works now:** The sidebar layout has been updated to support standard overflow visibility, and we restored gorgeous dark slate (`#0f172a`) tooltip labels. They now float perfectly outside the sidebar boundary and include a custom pointer arrow directing back to the navigation tab.
+### 5. 🏷️ Scrollable Sidebar & Unclipped Premium Tooltips
+* **What it is:** A fully scrollable navigation sidebar that keeps descriptive black label hover tooltips completely visible without clipping.
+* **How it works now:** 
+  * The sidebar container supports full vertical scrollbars (`overflow-y: auto`), meaning navigation lists remain accessible on any display height.
+  * The dark slate (`#0f172a`) hover labels use `position: fixed` horizontal locks (`left: 272px` and `left: 266px`). This allows them to escape the sidebar's scroll container boundaries completely.
+  * Because the navigation items use flex alignment with vertical centering, the tooltips naturally align vertically with the exact hovered item automatically.
 
 ### 6. 🔗 Global Shared Repository URL Input
 * **What it is:** A shared parameter box that stays with you across the application.
