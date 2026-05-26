@@ -148,9 +148,40 @@ const PRESET_TEMPLATES = [
   }
 ];
 
+const queriesMock = {
+  prs: `+--------+---------------------------------------+--------+
+| number | title                                 | state  |
++--------+---------------------------------------+--------+
+|   1482 | PatchLodash prototype vulnerability   | open   |
+|   1481 | Fix flakiness in webpack pipelines    | closed |
++--------+---------------------------------------+--------+
+2 rows returned inside WSL. (WSL execution: 12ms)`,
+  sentry: `+------------+---------------------------------------+-------+------------+
+| id         | title                                 | level | status     |
++------------+---------------------------------------+-------+------------+
+| sentry-102 | ZeroDivisionError: views.py           | error | unresolved |
+| sentry-103 | ConnectionTimeout: pool exhausted     | fatal | unresolved |
++------------+---------------------------------------+-------+------------+
+2 rows returned inside WSL. (WSL execution: 14ms)`,
+  actions: `+-----------------------+-----------+------------+
+| name                  | status    | conclusion |
++-----------------------+-----------+------------+
+| build-and-test        | completed | success    |
+| deploy-to-production  | completed | success    |
++-----------------------+-----------+------------+
+2 rows returned inside WSL. (WSL execution: 18ms)`,
+  tickets: `+----------+-------------------------------------------------+
+| key      | summary                                         |
++----------+-------------------------------------------------+
+| OPS-4821 | Fix flaky webpack build in CI/CD pipeline       |
+| SEC-882  | Patch Lodash prototype pollution vulnerability  |
++----------+-------------------------------------------------+
+2 rows returned inside WSL. (WSL execution: 11ms)`
+};
+
 function App() {
   const [theme, setTheme] = useState('light');
-  const [view, setView] = useState('dashboard'); // 'dashboard', 'database', or 'setup'
+  const [view, setView] = useState('landing'); // Default is now 'landing'!
   const [activeTool, setActiveTool] = useState(tools[0]);
   const [paramValue, setParamValue] = useState('https://github.com/open-metadata/OpenMetadata');
   const [results, setResults] = useState(null);
@@ -179,6 +210,51 @@ function App() {
     { timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(), query: "SELECT * FROM github.issues LIMIT 10;", rows: 10, status: "Success" },
     { timestamp: new Date(Date.now() - 1000 * 60 * 45).toISOString(), query: "SELECT id, title FROM sentry.issues LIMIT 5;", rows: 5, status: "Success" }
   ]);
+
+  // States for Landing Page
+  const [activePreset, setActivePreset] = useState('prs');
+  const [typedQuery, setTypedQuery] = useState("SELECT number, title, state FROM github.pulls WHERE owner = '{{OWNER}}' AND repo = '{{REPO}}' ORDER BY 1 DESC LIMIT 2;");
+  const [terminalOutput, setTerminalOutput] = useState(`+--------+---------------------------------------+--------+
+| number | title                                 | state  |
++--------+---------------------------------------+--------+
+|   1482 | PatchLodash prototype vulnerability   | open   |
+|   1481 | Fix flakiness in webpack pipelines    | closed |
++--------+---------------------------------------+--------+
+2 rows returned inside WSL. (WSL execution: 12ms)`);
+  const [isTyping, setIsTyping] = useState(false);
+  const [compareVal, setCompareVal] = useState(0);
+
+  const runLandingQuery = (type) => {
+    if (isTyping) return;
+    setActivePreset(type);
+    setIsTyping(true);
+    setTypedQuery("");
+    setTerminalOutput("");
+
+    const targetSql = PRESET_TEMPLATES.find(t => {
+      if (type === 'prs') return t.name.includes('PRs');
+      if (type === 'sentry') return t.name.includes('Sentry');
+      if (type === 'actions') return t.name.includes('CI');
+      if (type === 'tickets') return t.name.includes('Jira');
+      return false;
+    })?.sql || "SELECT * FROM coral.tables;";
+
+    let idx = 0;
+    const interval = setInterval(() => {
+      if (idx < targetSql.length) {
+        setTypedQuery(prev => prev + targetSql.charAt(idx));
+        idx++;
+      } else {
+        clearInterval(interval);
+        setTerminalOutput("Compiling Coral query...");
+        setTimeout(() => {
+          const matched = queriesMock[type];
+          setTerminalOutput(matched);
+          setIsTyping(false);
+        }, 400);
+      }
+    }, 8);
+  };
 
   const handleRemoveConnection = (source) => {
     setConnections(prev => ({ ...prev, [source.toLowerCase()]: '' }));
@@ -565,8 +641,10 @@ function App() {
     setLoading(false);
   };
 
+  const isLanding = view === 'landing';
+
   return (
-    <div className="app-container">
+    <div className="app-container" style={{ gridTemplateColumns: isLanding ? '1fr' : '260px 1fr' }}>
       <style>{`
         :root {
           --bg-main: #f8fafc;
@@ -962,72 +1040,966 @@ function App() {
         .results-row-hover:hover {
           background-color: rgba(59, 130, 246, 0.05) !important;
         }
+
+        /* Scoped Landing Page styles */
+        .landing-scope {
+          --bg: #030712;
+          --card-bg: rgba(17, 24, 39, 0.7);
+          --border: rgba(255, 255, 255, 0.08);
+          --text: #f3f4f6;
+          --text-dim: #9ca3af;
+          --accent: #6366f1;
+          --accent-glow: rgba(99, 102, 241, 0.15);
+          --success: #10b981;
+          --warning: #f59e0b;
+          --danger: #ef4444;
+          --font-display: 'Outfit', sans-serif;
+          --font-body: 'Inter', sans-serif;
+          --font-mono: 'Fira Code', monospace;
+          
+          background-color: var(--bg) !important;
+          color: var(--text) !important;
+          font-family: var(--font-body) !important;
+          min-height: 100vh !important;
+          width: 100% !important;
+          position: relative !important;
+          overflow-y: auto !important;
+          overflow-x: hidden !important;
+          line-height: 1.6 !important;
+          z-index: 10 !important;
+        }
+
+        .landing-scope * {
+          box-sizing: border-box !important;
+        }
+
+        .landing-scope .glow-blob {
+          position: absolute !important;
+          border-radius: 50% !important;
+          filter: blur(160px) !important;
+          z-index: 1 !important;
+          opacity: 0.45 !important;
+          pointer-events: none !important;
+        }
+
+        .landing-scope .glow-1 {
+          top: -100px !important;
+          right: -100px !important;
+          width: 600px !important;
+          height: 600px !important;
+          background: radial-gradient(circle, #4f46e5 0%, #030712 70%) !important;
+        }
+
+        .landing-scope .glow-2 {
+          top: 600px !important;
+          left: -200px !important;
+          width: 500px !important;
+          height: 500px !important;
+          background: radial-gradient(circle, #3b82f6 0%, #030712 70%) !important;
+        }
+
+        .landing-scope .glow-3 {
+          bottom: 200px !important;
+          right: -100px !important;
+          width: 550px !important;
+          height: 550px !important;
+          background: radial-gradient(circle, #818cf8 0%, #030712 70%) !important;
+        }
+
+        .landing-scope header {
+          position: fixed !important;
+          top: 0 !important;
+          left: 0 !important;
+          width: 100% !important;
+          backdrop-filter: blur(12px) !important;
+          background-color: rgba(3, 7, 18, 0.7) !important;
+          border-bottom: 1px solid var(--border) !important;
+          z-index: 1000 !important;
+          transition: all 0.3s !important;
+        }
+
+        .landing-scope .nav-container {
+          max-width: 1200px !important;
+          margin: 0 auto !important;
+          padding: 16px 24px !important;
+          display: flex !important;
+          justify-content: space-between !important;
+          align-items: center !important;
+        }
+
+        .landing-scope .logo {
+          font-family: var(--font-display) !important;
+          font-weight: 800 !important;
+          font-size: 22px !important;
+          color: var(--text) !important;
+          text-decoration: none !important;
+          display: flex !important;
+          align-items: center !important;
+          gap: 8px !important;
+          margin-top: 0 !important;
+        }
+
+        .landing-scope .logo span {
+          background: linear-gradient(135deg, #6366f1 0%, #3b82f6 100%) !important;
+          -webkit-background-clip: text !important;
+          -webkit-text-fill-color: transparent !important;
+        }
+
+        .landing-scope .nav-links {
+          display: flex !important;
+          gap: 32px !important;
+          align-items: center !important;
+        }
+
+        .landing-scope .nav-link {
+          color: var(--text-dim) !important;
+          text-decoration: none !important;
+          font-size: 14px !important;
+          font-weight: 500 !important;
+          transition: color 0.2s !important;
+        }
+
+        .landing-scope .nav-link:hover {
+          color: var(--text) !important;
+        }
+
+        .landing-scope .btn {
+          padding: 10px 20px !important;
+          border-radius: 8px !important;
+          font-weight: 600 !important;
+          font-size: 14px !important;
+          cursor: pointer !important;
+          text-decoration: none !important;
+          transition: all 0.2s !important;
+          display: inline-flex !important;
+          align-items: center !important;
+          gap: 8px !important;
+          border: none !important;
+        }
+
+        .landing-scope .btn-primary {
+          background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%) !important;
+          color: #ffffff !important;
+          box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4) !important;
+        }
+
+        .landing-scope .btn-primary:hover {
+          transform: translateY(-2px) !important;
+          box-shadow: 0 6px 20px rgba(99, 102, 241, 0.6) !important;
+        }
+
+        .landing-scope .btn-secondary {
+          background-color: rgba(255, 255, 255, 0.05) !important;
+          color: var(--text) !important;
+          border: 1px solid var(--border) !important;
+        }
+
+        .landing-scope .btn-secondary:hover {
+          background-color: rgba(255, 255, 255, 0.1) !important;
+          transform: translateY(-2px) !important;
+        }
+
+        .landing-scope .section-container {
+          max-width: 1200px !important;
+          margin: 0 auto !important;
+          padding: 120px 24px 60px 24px !important;
+          position: relative !important;
+          z-index: 2 !important;
+        }
+
+        .landing-scope .hero-layout {
+          display: grid !important;
+          grid-template-columns: 1.1fr 0.9fr !important;
+          gap: 40px !important;
+          align-items: center !important;
+        }
+
+        .landing-scope .hero-title {
+          font-family: var(--font-display) !important;
+          font-size: 54px !important;
+          font-weight: 900 !important;
+          line-height: 1.15 !important;
+          margin-bottom: 24px !important;
+          background: linear-gradient(135deg, #ffffff 0%, #d1d5db 50%, #93c5fd 100%) !important;
+          -webkit-background-clip: text !important;
+          -webkit-text-fill-color: transparent !important;
+        }
+
+        .landing-scope .hero-title span {
+          background: linear-gradient(135deg, #818cf8 0%, #3b82f6 100%) !important;
+          -webkit-background-clip: text !important;
+          -webkit-text-fill-color: transparent !important;
+        }
+
+        .landing-scope .hero-desc {
+          font-size: 18px !important;
+          color: var(--text-dim) !important;
+          margin-bottom: 36px !important;
+          max-width: 540px !important;
+        }
+
+        .landing-scope .hero-ctas {
+          display: flex !important;
+          gap: 16px !important;
+          margin-bottom: 48px !important;
+        }
+
+        .landing-scope .mockup-container {
+          position: relative !important;
+          background-color: var(--card-bg) !important;
+          border: 1px solid var(--border) !important;
+          border-radius: 16px !important;
+          padding: 16px !important;
+          box-shadow: 0 20px 50px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1) !important;
+          backdrop-filter: blur(12px) !important;
+          transform: perspective(1000px) rotateY(-5deg) rotateX(5deg) !important;
+          transition: all 0.5s ease !important;
+        }
+
+        .landing-scope .mockup-container:hover {
+          transform: perspective(1000px) rotateY(0deg) rotateX(0deg) !important;
+          box-shadow: 0 25px 60px rgba(99, 102, 241, 0.15), inset 0 1px 0 rgba(255,255,255,0.15) !important;
+        }
+
+        .landing-scope .mockup-header {
+          display: flex !important;
+          justify-content: space-between !important;
+          align-items: center !important;
+          margin-bottom: 12px !important;
+          border-bottom: 1px solid var(--border) !important;
+          padding-bottom: 8px !important;
+        }
+
+        .landing-scope .mockup-dots {
+          display: flex !important;
+          gap: 6px !important;
+        }
+
+        .landing-scope .mockup-dot {
+          width: 8px !important;
+          height: 8px !important;
+          border-radius: 50% !important;
+        }
+
+        .landing-scope .mockup-dot.red { background-color: var(--danger) !important; }
+        .landing-scope .mockup-dot.yellow { background-color: var(--warning) !important; }
+        .landing-scope .mockup-dot.green { background-color: var(--success) !important; }
+
+        .landing-scope .mockup-card {
+          background-color: rgba(3, 7, 18, 0.4) !important;
+          border: 1px solid var(--border) !important;
+          border-radius: 8px !important;
+          padding: 14px !important;
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 8px !important;
+        }
+
+        .landing-scope .mockup-pill {
+          font-size: 10px !important;
+          font-weight: 700 !important;
+          color: var(--success) !important;
+          background-color: rgba(16, 185, 129, 0.15) !important;
+          padding: 2px 8px !important;
+          border-radius: 999px !important;
+          align-self: flex-start !important;
+          text-transform: uppercase !important;
+        }
+
+        .landing-scope .mockup-title {
+          font-weight: 700 !important;
+          font-size: 14px !important;
+          font-family: var(--font-display) !important;
+        }
+
+        .landing-scope .mockup-body {
+          font-size: 12px !important;
+          color: var(--text-dim) !important;
+        }
+
+        .landing-scope .section-title-wrap {
+          text-align: center !important;
+          margin-bottom: 60px !important;
+        }
+
+        .landing-scope .section-title {
+          font-family: var(--font-display) !important;
+          font-size: 38px !important;
+          font-weight: 800 !important;
+          margin-bottom: 12px !important;
+          background: linear-gradient(135deg, #ffffff 0%, #d1d5db 100%) !important;
+          -webkit-background-clip: text !important;
+          -webkit-text-fill-color: transparent !important;
+        }
+
+        .landing-scope .section-desc {
+          color: var(--text-dim) !important;
+          font-size: 15px !important;
+          max-width: 600px !important;
+          margin: 0 auto !important;
+        }
+
+        .landing-scope .features-grid {
+          display: grid !important;
+          grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)) !important;
+          gap: 24px !important;
+        }
+
+        .landing-scope .feature-card {
+          background-color: var(--card-bg) !important;
+          border: 1px solid var(--border) !important;
+          border-radius: 12px !important;
+          padding: 32px !important;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.3) !important;
+          transition: all 0.3s !important;
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 16px !important;
+        }
+
+        .landing-scope .feature-card:hover {
+          border-color: var(--accent) !important;
+          transform: translateY(-5px) !important;
+          box-shadow: 0 15px 40px var(--accent-glow) !important;
+        }
+
+        .landing-scope .feature-icon-box {
+          width: 48px !important;
+          height: 48px !important;
+          border-radius: 10px !important;
+          background-color: rgba(99, 102, 241, 0.1) !important;
+          border: 1px solid rgba(99, 102, 241, 0.2) !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          color: var(--accent) !important;
+        }
+
+        .landing-scope .feature-name {
+          font-family: var(--font-display) !important;
+          font-size: 18px !important;
+          font-weight: 700 !important;
+        }
+
+        .landing-scope .feature-desc {
+          font-size: 13px !important;
+          color: var(--text-dim) !important;
+          line-height: 1.6 !important;
+        }
+
+        .landing-scope .terminal-section {
+          background-color: rgba(3, 7, 18, 0.8) !important;
+          border: 1px solid var(--border) !important;
+          border-radius: 16px !important;
+          padding: 32px !important;
+          display: grid !important;
+          grid-template-columns: 280px 1fr !important;
+          gap: 24px !important;
+          box-shadow: 0 20px 60px rgba(0,0,0,0.6) !important;
+          backdrop-filter: blur(12px) !important;
+        }
+
+        .landing-scope .terminal-menu {
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 10px !important;
+          border-right: 1px solid var(--border) !important;
+          padding-right: 20px !important;
+        }
+
+        .landing-scope .terminal-btn {
+          background: none !important;
+          border: 1px solid transparent !important;
+          padding: 10px 14px !important;
+          border-radius: 6px !important;
+          text-align: left !important;
+          font-family: var(--font-body) !important;
+          font-size: 13px !important;
+          font-weight: 600 !important;
+          color: var(--text-dim) !important;
+          cursor: pointer !important;
+          transition: all 0.2s !important;
+          display: flex !important;
+          align-items: center !important;
+          gap: 8px !important;
+        }
+
+        .landing-scope .terminal-btn:hover {
+          color: var(--text) !important;
+          background-color: rgba(255, 255, 255, 0.03) !important;
+        }
+
+        .landing-scope .terminal-btn.active {
+          color: var(--text) !important;
+          background-color: rgba(99, 102, 241, 0.1) !important;
+          border-color: rgba(99, 102, 241, 0.2) !important;
+        }
+
+        .landing-scope .terminal-workspace {
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 16px !important;
+          min-height: 380px !important;
+        }
+
+        .landing-scope .terminal-box {
+          background-color: #050b18 !important;
+          border: 1px solid var(--border) !important;
+          border-radius: 8px !important;
+          padding: 18px !important;
+          font-family: var(--font-mono) !important;
+          font-size: 13px !important;
+          color: #a7f3d0 !important;
+          flex: 1 !important;
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 12px !important;
+          overflow-y: auto !important;
+          max-height: 300px !important;
+          box-shadow: inset 0 2px 8px rgba(0,0,0,0.8) !important;
+          position: relative !important;
+        }
+
+        .landing-scope .terminal-line {
+          display: flex !important;
+          gap: 8px !important;
+        }
+
+        .landing-scope .terminal-prompt {
+          color: var(--accent) !important;
+          user-select: none !important;
+        }
+
+        .landing-scope .terminal-output {
+          color: var(--text) !important;
+          white-space: pre-wrap !important;
+          animation: fadeIn 0.3s forwards !important;
+        }
+
+        .landing-scope .terminal-loader {
+          display: flex !important;
+          align-items: center !important;
+          gap: 8px !important;
+          color: var(--accent) !important;
+          font-style: italic !important;
+        }
+
+        .landing-scope .integrations-box {
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: center !important;
+          justify-content: center !important;
+          background-color: var(--card-bg) !important;
+          border: 1px solid var(--border) !important;
+          border-radius: 16px !important;
+          padding: 40px !important;
+          position: relative !important;
+          overflow: hidden !important;
+          min-height: 380px !important;
+        }
+
+        .landing-scope .central-core {
+          width: 90px !important;
+          height: 90px !important;
+          border-radius: 50% !important;
+          background: linear-gradient(135deg, #6366f1 0%, #3b82f6 100%) !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          font-family: var(--font-display) !important;
+          font-weight: 800 !important;
+          font-size: 18px !important;
+          color: #ffffff !important;
+          box-shadow: 0 0 40px rgba(99, 102, 241, 0.6) !important;
+          z-index: 10 !important;
+          position: relative !important;
+          animation: pulseCore 2.5s infinite ease-in-out !important;
+        }
+
+        .landing-scope .nodes-container {
+          position: absolute !important;
+          width: 100% !important;
+          height: 100% !important;
+          top: 0 !important;
+          left: 0 !important;
+          display: flex !important;
+          justify-content: center !important;
+          align-items: center !important;
+        }
+
+        .landing-scope .node {
+          position: absolute !important;
+          width: 56px !important;
+          height: 56px !important;
+          border-radius: 12px !important;
+          background-color: #0b1120 !important;
+          border: 1px solid var(--border) !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          font-weight: 700 !important;
+          font-size: 11px !important;
+          color: var(--text) !important;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.5) !important;
+          transition: all 0.3s !important;
+          z-index: 5 !important;
+          margin-top: 0 !important;
+        }
+
+        .landing-scope .node:hover {
+          border-color: var(--accent) !important;
+          box-shadow: 0 0 20px rgba(99, 102, 241, 0.4) !important;
+          transform: scale(1.1) !important;
+        }
+
+        .landing-scope .node.n-github { top: 40px !important; left: calc(50% - 28px) !important; }
+        .landing-scope .node.n-slack  { bottom: 40px !important; left: calc(50% - 28px) !important; }
+        .landing-scope .node.n-jira   { left: 40px !important; top: calc(50% - 28px) !important; }
+        .landing-scope .node.n-sentry { right: 40px !important; top: calc(50% - 28px) !important; }
+
+        .landing-scope .pulse-line {
+          position: absolute !important;
+          background-color: rgba(99, 102, 241, 0.15) !important;
+          z-index: 1 !important;
+        }
+
+        .landing-scope .pulse-line.vertical {
+          width: 2px !important;
+          height: 380px !important;
+          top: 0 !important;
+          left: calc(50% - 1px) !important;
+        }
+
+        .landing-scope .pulse-line.horizontal {
+          height: 2px !important;
+          width: 100% !important;
+          left: 0 !important;
+          top: calc(50% - 1px) !important;
+        }
+
+        .landing-scope .compare-section {
+          background-color: var(--card-bg) !important;
+          border: 1px solid var(--border) !important;
+          border-radius: 16px !important;
+          padding: 40px !important;
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 32px !important;
+        }
+
+        .landing-scope .compare-controls {
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 12px !important;
+          align-items: center !important;
+        }
+
+        .landing-scope .slider-wrap {
+          width: 100% !important;
+          max-width: 600px !important;
+          position: relative !important;
+        }
+
+        .landing-scope .slider {
+          -webkit-appearance: none !important;
+          width: 100% !important;
+          height: 8px !important;
+          border-radius: 4px !important;
+          background: rgba(255, 255, 255, 0.05) !important;
+          border: 1px solid var(--border) !important;
+          outline: none !important;
+          cursor: pointer !important;
+        }
+
+        .landing-scope .slider::-webkit-slider-thumb {
+          -webkit-appearance: none !important;
+          appearance: none !important;
+          width: 22px !important;
+          height: 22px !important;
+          border-radius: 50% !important;
+          background: linear-gradient(135deg, #6366f1 0%, #3b82f6 100%) !important;
+          box-shadow: 0 0 15px rgba(99, 102, 241, 0.8) !important;
+          border: none !important;
+          transition: transform 0.1s !important;
+        }
+
+        .landing-scope .slider::-webkit-slider-thumb:hover {
+          transform: scale(1.2) !important;
+        }
+
+        .landing-scope .compare-chart {
+          display: grid !important;
+          grid-template-columns: 1fr 1fr !important;
+          gap: 24px !important;
+        }
+
+        .landing-scope .chart-bar-container {
+          background-color: rgba(3, 7, 18, 0.4) !important;
+          border: 1px solid var(--border) !important;
+          border-radius: 12px !important;
+          padding: 24px !important;
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 16px !important;
+          min-height: 220px !important;
+          justify-content: flex-end !important;
+        }
+
+        .landing-scope .chart-bar-title {
+          font-size: 13px !important;
+          font-weight: 700 !important;
+          color: var(--text-dim) !important;
+          text-transform: uppercase !important;
+          margin-bottom: auto !important;
+        }
+
+        .landing-scope .chart-bar-val {
+          font-family: var(--font-display) !important;
+          font-size: 32px !important;
+          font-weight: 800 !important;
+          line-height: 1 !important;
+        }
+
+        .landing-scope .chart-bar-val.fast {
+          background: linear-gradient(135deg, var(--success) 0%, #34d399 100%) !important;
+          -webkit-background-clip: text !important;
+          -webkit-text-fill-color: transparent !important;
+        }
+
+        .landing-scope .chart-bar-val.slow {
+          background: linear-gradient(135deg, var(--danger) 0%, #f87171 100%) !important;
+          -webkit-background-clip: text !important;
+          -webkit-text-fill-color: transparent !important;
+        }
+
+        .landing-scope .chart-bar {
+          border-radius: 6px !important;
+          width: 100% !important;
+          transition: height 0.5s ease-out !important;
+        }
+
+        .landing-scope .chart-bar.legacy {
+          background: linear-gradient(90deg, #ef4444 0%, #f87171 100%) !important;
+        }
+
+        .landing-scope .chart-bar.coral {
+          background: linear-gradient(90deg, #10b981 0%, #34d399 100%) !important;
+        }
+
+        .landing-scope footer {
+          border-top: 1px solid var(--border) !important;
+          padding: 48px 24px !important;
+          text-align: center !important;
+          font-size: 13px !important;
+          color: var(--text-dim) !important;
+          margin-top: 60px !important;
+        }
       `}</style>
 
-      <aside className="sidebar">
-        <button className="theme-toggle" onClick={toggleTheme}>
-          {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
-        </button>
-        <div className="logo" style={{ marginTop: '40px' }}>
-          <Layers size={24} /> CORAL AGENT
-        </div>
-
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <div
-            className={`nav-item ${view === 'dashboard' ? 'active' : ''}`}
-            onClick={() => setView('dashboard')}
-            data-tooltip="Main tools for developers."
-          >
-            <LayoutDashboard size={18} />
-            <span>Dashboard</span>
+      {!isLanding && (
+        <aside className="sidebar">
+          <button className="theme-toggle" onClick={toggleTheme}>
+            {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+          </button>
+          <div className="logo" style={{ marginTop: '40px' }}>
+            <Layers size={24} /> CORAL AGENT
           </div>
-          <div
-            className={`nav-item ${view === 'database' ? 'active' : ''}`}
-            onClick={() => setView('database')}
-            data-tooltip="Write and run custom SQL queries via Coral."
-          >
-            <TerminalSquare size={18} />
-            <span>Query Console</span>
-          </div>
-          <div
-            className={`nav-item ${view === 'setup' ? 'active' : ''}`}
-            onClick={() => setView('setup')}
-            data-tooltip="Configure your API keys."
-          >
-            <Settings size={18} />
-            <span>Setup</span>
-          </div>
-        </nav>
 
-        <div style={{ height: '1px', background: 'var(--border)', margin: '12px 0' }} />
-
-        {view === 'dashboard' && (
-          <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <p style={{ fontSize: '11px', color: 'var(--text-dim)', marginBottom: '8px' }}>AVAILABLE TOOLS</p>
-            {tools.map((tool) => (
-              <div
-                key={tool.id}
-                className={`nav-item ${activeTool.id === tool.id ? 'active' : ''}`}
-                onClick={() => handleToolSwitch(tool)}
-                data-tooltip={tool.tooltip}
-              >
-                <tool.icon size={18} />
-                <span>{tool.name}</span>
-              </div>
-            ))}
+          <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div
+              className={`nav-item ${view === 'dashboard' ? 'active' : ''}`}
+              onClick={() => setView('dashboard')}
+              data-tooltip="Main tools for developers."
+            >
+              <LayoutDashboard size={18} />
+              <span>Dashboard</span>
+            </div>
+            <div
+              className={`nav-item ${view === 'database' ? 'active' : ''}`}
+              onClick={() => setView('database')}
+              data-tooltip="Write and run custom SQL queries via Coral."
+            >
+              <TerminalSquare size={18} />
+              <span>Query Console</span>
+            </div>
+            <div
+              className={`nav-item ${view === 'setup' ? 'active' : ''}`}
+              onClick={() => setView('setup')}
+              data-tooltip="Configure your API keys."
+            >
+              <Settings size={18} />
+              <span>Setup</span>
+            </div>
           </nav>
-        )}
 
-        <div style={{ marginTop: 'auto', fontSize: '12px', color: 'var(--text-dim)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: backendStatus.coral_installed ? 'var(--success)' : 'var(--danger)' }} />
-            Backend: {backendStatus.coral_installed ? 'Connected' : 'Offline'}
+          <div style={{ height: '1px', background: 'var(--border)', margin: '12px 0' }} />
+
+          {view === 'dashboard' && (
+            <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <p style={{ fontSize: '11px', color: 'var(--text-dim)', marginBottom: '8px' }}>AVAILABLE TOOLS</p>
+              {tools.map((tool) => (
+                <div
+                  key={tool.id}
+                  className={`nav-item ${activeTool.id === tool.id ? 'active' : ''}`}
+                  onClick={() => handleToolSwitch(tool)}
+                  data-tooltip={tool.tooltip}
+                >
+                  <tool.icon size={18} />
+                  <span>{tool.name}</span>
+                </div>
+              ))}
+            </nav>
+          )}
+
+          <div style={{ marginTop: 'auto', fontSize: '12px', color: 'var(--text-dim)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: backendStatus.coral_installed ? 'var(--success)' : 'var(--danger)' }} />
+              Backend: {backendStatus.coral_installed ? 'Connected' : 'Offline'}
+            </div>
           </div>
-        </div>
-      </aside>
+        </aside>
+      )}
 
-      <main className="main-content">
-        {view === 'dashboard' ? (
+      <main className="main-content" style={{ padding: isLanding ? '0' : '40px' }}>
+        {view === 'landing' ? (
+          <div className="landing-scope">
+            {/* Ambient Glow */}
+            <div className="glow-blob glow-1"></div>
+            <div className="glow-blob glow-2"></div>
+            <div className="glow-blob glow-3"></div>
+
+            {/* Header Nav */}
+            <header>
+              <div className="nav-container">
+                <a href="#" className="logo" onClick={(e) => { e.preventDefault(); setView('landing'); }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} style={{ color: '#6366f1' }}><path d="m12 3-1.912 5.886L4 9.886l5.088 1.913L10.088 19 12 13.088 13.912 19l1.000-7.199L20 9.886l-6.088-1.000L12 3Z"/></svg>
+                  TEAM OPTIMIZATION PORTAL <span>(TOP)</span>
+                </a>
+                <nav className="nav-links">
+                  <a href="#features" className="nav-link">Coral Core</a>
+                  <a href="#terminal" className="nav-link">Live Terminal</a>
+                  <a href="#pulse" className="nav-link">Network</a>
+                  <a href="#compare" className="nav-link">Performance</a>
+                  <button onClick={() => setView('dashboard')} className="btn btn-primary">Launch Dashboard</button>
+                </nav>
+              </div>
+            </header>
+
+            {/* Hero Section */}
+            <section className="section-container" style={{ paddingTop: '140px' }}>
+              <div className="hero-layout">
+                <div>
+                  <h1 className="hero-title">
+                    Unleash Developer Intelligence. <br />
+                    Powered by <span>Coral</span>.
+                  </h1>
+                  <p className="hero-desc">
+                    Decode verbose crash stack traces, git pipelines, and active incidents in under 20ms. TOP consolidates Sentry, Slack, GitHub, and Jira into one unified SQL query engine.
+                  </p>
+                  <div className="hero-ctas">
+                    <button onClick={() => setView('dashboard')} className="btn btn-primary">Launch Dashboard</button>
+                    <a href="#features" className="btn btn-secondary">Explore Features</a>
+                  </div>
+                </div>
+                
+                <div>
+                  <div className="mockup-container">
+                    <div className="mockup-header">
+                      <div className="mockup-dots">
+                        <span className="mockup-dot red"></span>
+                        <span className="mockup-dot yellow"></span>
+                        <span className="mockup-dot green"></span>
+                      </div>
+                      <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>TOP Mission Control</span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div className="mockup-card">
+                        <span className="mockup-pill">✅ CI Completed</span>
+                        <span className="mockup-title">Fix flakiness in webpack pipelines</span>
+                        <p className="mockup-body">Coral resolved workflow execution parameters directly inside WSL in 12ms.</p>
+                      </div>
+                      <div className="mockup-card" style={{ opacity: 0.85 }}>
+                        <span className="mockup-pill" style={{ backgroundColor: 'rgba(239,68,68,0.15)', color: 'var(--danger)' }}>⚠️ Sentry Alert</span>
+                        <span className="mockup-title">ZeroDivisionError: division by zero in auth.py</span>
+                        <p className="mockup-body">Identified 3 Slack conversations discussing this incident.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Features Block (The Coral Core) */}
+            <section id="features" className="section-container">
+              <div className="section-title-wrap">
+                <h2 className="section-title">The Coral Query Framework</h2>
+                <p className="section-desc">Traditional interfaces are slow and split across multiple pages. TOP leverages Coral to query your entire system as standard relational SQL databases.</p>
+              </div>
+              
+              <div className="features-grid">
+                {/* Feature 1 */}
+                <div className="feature-card">
+                  <div className="feature-icon-box">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M4 22V4c0-.5.2-1 .6-1.4C5 2.2 5.5 2 6 2h12c.5 0 1 .2 1.4.6.4.4.6.9.6 1.4v18l-5-4-5 4-5-4Z"/></svg>
+                  </div>
+                  <h3 className="feature-name">Unified SQL Adaptation</h3>
+                  <p className="feature-desc">Treat Jira, GitHub, Slack, and Sentry as standard SQL databases. Query cross-source metrics inside one single unified database view.</p>
+                </div>
+                {/* Feature 2 */}
+                <div className="feature-card">
+                  <div className="feature-icon-box">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8Z"/></svg>
+                  </div>
+                  <h3 className="feature-name">Sub-20ms WSL Pipeline</h3>
+                  <p className="feature-desc">All queries execute asynchronously against Coral's native WSL Ubuntu-24.04 CLI, compiling raw telemetry speeds in milliseconds.</p>
+                </div>
+                {/* Feature 3 */}
+                <div className="feature-card">
+                  <div className="feature-icon-box">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                  </div>
+                  <h3 className="feature-name">100% Fail-Safe Redirection</h3>
+                  <p className="feature-desc">Includes a fail-fast 3-second Coral timeout. If a query times out or fails, the backend instantly runs direct REST API fetches to protect layouts.</p>
+                </div>
+              </div>
+            </section>
+
+            {/* Interactive SQL CLI Terminal */}
+            <section id="terminal" className="section-container">
+              <div className="section-title-wrap">
+                <h2 className="section-title">Query Console Playground</h2>
+                <p className="section-desc">Try running some real-time Coral SQL queries. Select a template on the left and see how Coral compiles WS telemetry.</p>
+              </div>
+
+              <div className="terminal-section">
+                <div className="terminal-menu">
+                  <button className={`terminal-btn ${activePreset === 'prs' ? 'active' : ''}`} onClick={() => runLandingQuery('prs')}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="m18 16 4-4-4-4M6 8l-4 4 4 4M14.5 4l-5 16"/></svg>
+                    Pull Requests
+                  </button>
+                  <button className={`terminal-btn ${activePreset === 'sentry' ? 'active' : ''}`} onClick={() => runLandingQuery('sentry')}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+                    Sentry Exceptions
+                  </button>
+                  <button className={`terminal-btn ${activePreset === 'actions' ? 'active' : ''}`} onClick={() => runLandingQuery('actions')}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 11-.57-8.38l5.67-5.67"/></svg>
+                    CI Action Runs
+                  </button>
+                  <button className={`terminal-btn ${activePreset === 'tickets' ? 'active' : ''}`} onClick={() => runLandingQuery('tickets')}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/></svg>
+                    Jira Tickets
+                  </button>
+                </div>
+
+                <div className="terminal-workspace">
+                  <div className="terminal-box" id="terminalBox">
+                    <div className="terminal-line">
+                      <span className="terminal-prompt">$</span>
+                      <span className="terminal-output" id="queryPrompt">{typedQuery}</span>
+                    </div>
+                    <div className="terminal-line" id="terminalResponse">
+                      {isTyping && !terminalOutput ? (
+                        <div className="terminal-loader">
+                          <svg width="12" height="12" className="spin" style={{ animation: 'spin 1s linear infinite' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
+                            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                          </svg>
+                          <span> Compiling query...</span>
+                        </div>
+                      ) : (
+                        <span className="terminal-output" style={{ color: 'var(--text-dim)' }}>
+                          {terminalOutput}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Node Link Network Pulse Board */}
+            <section id="pulse" className="section-container">
+              <div className="section-title-wrap">
+                <h2 className="section-title">Telemetry Network Board</h2>
+                <p className="section-desc">TOP dynamically monitors network nodes, pulling platform activities through the Coral abstraction layer.</p>
+              </div>
+
+              <div className="integrations-box">
+                <div className="pulse-line vertical"></div>
+                <div className="pulse-line horizontal"></div>
+                
+                <div className="central-core">
+                  CORAL
+                </div>
+                
+                <div className="nodes-container">
+                  <div className="node n-github">GitHub</div>
+                  <div className="node n-slack">Slack</div>
+                  <div className="node n-jira">Jira</div>
+                  <div className="node n-sentry">Sentry</div>
+                </div>
+              </div>
+            </section>
+
+            {/* Speed Comparison Slider Section */}
+            <section id="compare" className="section-container" style={{ marginBottom: '60px' }}>
+              <div className="section-title-wrap">
+                <h2 className="section-title">Speed Optimization Index</h2>
+                <p className="section-desc">Slide the bar to compare standard REST API query loads against Coral-accelerated unified caching.</p>
+              </div>
+
+              <div className="compare-section">
+                <div className="compare-controls">
+                  <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-dim)', textTransform: 'uppercase' }}>
+                    SWIPE TO OPTIMIZE TELEMETRY
+                  </span>
+                  <div className="slider-wrap">
+                    <input 
+                      type="range" 
+                      min="0" 
+                      max="100" 
+                      value={compareVal} 
+                      className="slider" 
+                      id="compareSlider" 
+                      onChange={(e) => setCompareVal(parseInt(e.target.value))}
+                    />
+                  </div>
+                </div>
+
+                <div className="compare-chart">
+                  {/* Legacy */}
+                  <div className="chart-bar-container">
+                    <span className="chart-bar-title">Legacy REST Pipeline</span>
+                    <span className="chart-bar-val slow" id="slowVal">
+                      {(5.2 - ((compareVal / 100) * 2.8)).toFixed(2)}s
+                    </span>
+                    <div 
+                      className="chart-bar legacy" 
+                      id="legacyBar" 
+                      style={{ height: `${140 - ((compareVal / 100) * 80)}px` }}
+                    />
+                  </div>
+                  {/* Coral */}
+                  <div className="chart-bar-container">
+                    <span className="chart-bar-title">TOP accelerated by Coral</span>
+                    <span className="chart-bar-val fast" id="fastVal">
+                      {(0.02 - ((compareVal / 100) * 0.015)).toFixed(3)}s
+                    </span>
+                    <div 
+                      className="chart-bar coral" 
+                      id="coralBar" 
+                      style={{ height: `${2 + ((compareVal / 100) * 12)}px` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Footer */}
+            <footer>
+              <p>© 2026 Team Optimization Portal (TOP). All rights reserved. Powered by the Coral query framework.</p>
+            </footer>
+          </div>
+        ) : view === 'dashboard' ? (
           <div>
             <header style={{ marginBottom: '32px' }}>
               <h1 style={{ fontSize: '24px', fontWeight: '700' }}>{activeTool.name}</h1>
