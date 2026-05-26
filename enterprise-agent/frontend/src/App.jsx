@@ -1901,7 +1901,7 @@ function App() {
               <div className="hero-layout">
                 <div>
                   <h1 className="hero-title">
-                    Unleash Developer Intelligence with <span>TOP</span>. <br />
+                    Unleash Developer Intelligence with <span>TOP</span> <br />
                     Powered by <span>Coral</span>.
                   </h1>
                   <p className="hero-desc">
