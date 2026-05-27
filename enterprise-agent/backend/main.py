@@ -166,6 +166,7 @@ class SearchRequest(BaseModel):
     repo: str = None
     page: int = 1
     page_size: int = 20
+    source: str = "All"
 
 class QueryRequest(BaseModel):
     query: str
@@ -1266,13 +1267,30 @@ def run_semantic_search(req: SearchRequest):
     owner, repo = extract_repo_from_query(query, default_owner=req.owner, default_repo=req.repo)
     print(f"Dynamic repository extraction: owner='{owner}', repo='{repo}'")
 
-    # 1. Fetch live credentials results
-    sentry_res = fetch_sentry_search(query)
-    slack_res = fetch_slack_search(query)
-    jira_res = fetch_jira_search(query)
-    github_res = fetch_github_search(query, owner, repo)
-    github_commits = fetch_github_commits_search(query, owner, repo)
-    repo_info = fetch_github_repo_info(owner, repo) if owner and repo else None
+    # 1. Fetch live credentials results based on source filter
+    source_filter = req.source.strip().lower() if req.source else "all"
+    
+    sentry_res = []
+    slack_res = []
+    jira_res = []
+    github_res = []
+    github_commits = []
+    repo_info = None
+
+    if source_filter in ("all", "sentry"):
+        print("Querying Sentry integration...")
+        sentry_res = fetch_sentry_search(query)
+    if source_filter in ("all", "slack"):
+        print("Querying Slack integration...")
+        slack_res = fetch_slack_search(query)
+    if source_filter in ("all", "jira"):
+        print("Querying Jira integration...")
+        jira_res = fetch_jira_search(query)
+    if source_filter in ("all", "github"):
+        print("Querying GitHub integration...")
+        github_res = fetch_github_search(query, owner, repo)
+        github_commits = fetch_github_commits_search(query, owner, repo)
+        repo_info = fetch_github_repo_info(owner, repo) if owner and repo else None
     
     results = []
     

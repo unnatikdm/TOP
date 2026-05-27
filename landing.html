@@ -1,16 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Team Optimization Portal (TOP) | Powered by Coral</title>
-  <meta name="description" content="Decentralized Developer Intelligence & Incident Response Dashboard accelerated by the Coral Query Engine.">
-  
+  <meta name="description"
+    content="Decentralized Developer Intelligence & Incident Response Dashboard accelerated by the Coral Query Engine.">
+
   <!-- Premium Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;700;800;900&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
-  
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;700;800;900&family=Fira+Code:wght@400;600&display=swap"
+    rel="stylesheet">
+
   <style>
     :root {
       --bg: #030712;
@@ -223,7 +227,7 @@
       border: 1px solid var(--border);
       border-radius: 16px;
       padding: 16px;
-      box-shadow: 0 20px 50px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
       backdrop-filter: blur(12px);
       transform: perspective(1000px) rotateY(-5deg) rotateX(5deg);
       transition: all 0.5s ease;
@@ -231,7 +235,7 @@
 
     .mockup-container:hover {
       transform: perspective(1000px) rotateY(0deg) rotateX(0deg);
-      box-shadow: 0 25px 60px rgba(99, 102, 241, 0.15), inset 0 1px 0 rgba(255,255,255,0.15);
+      box-shadow: 0 25px 60px rgba(99, 102, 241, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.15);
     }
 
     .mockup-header {
@@ -254,9 +258,17 @@
       border-radius: 50%;
     }
 
-    .mockup-dot.red { background-color: var(--danger); }
-    .mockup-dot.yellow { background-color: var(--warning); }
-    .mockup-dot.green { background-color: var(--success); }
+    .mockup-dot.red {
+      background-color: var(--danger);
+    }
+
+    .mockup-dot.yellow {
+      background-color: var(--warning);
+    }
+
+    .mockup-dot.green {
+      background-color: var(--success);
+    }
 
     .mockup-card {
       background-color: rgba(3, 7, 18, 0.4);
@@ -324,7 +336,7 @@
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 32px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
       transition: all 0.3s;
       display: flex;
       flex-direction: column;
@@ -370,7 +382,7 @@
       display: grid;
       grid-template-columns: 280px 1fr;
       gap: 24px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
       backdrop-filter: blur(12px);
     }
 
@@ -431,7 +443,7 @@
       gap: 12px;
       overflow-y: auto;
       max-height: 300px;
-      box-shadow: inset 0 2px 8px rgba(0,0,0,0.8);
+      box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.8);
       position: relative;
     }
 
@@ -515,7 +527,7 @@
       justify-content: center;
       font-weight: 700;
       font-size: 11px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
       transition: all 0.3s;
       z-index: 5;
     }
@@ -526,10 +538,25 @@
       transform: scale(1.1);
     }
 
-    .node.n-github { top: 40px; left: calc(50% - 28px); }
-    .node.n-slack  { bottom: 40px; left: calc(50% - 28px); }
-    .node.n-jira   { left: 40px; top: calc(50% - 28px); }
-    .node.n-sentry { right: 40px; top: calc(50% - 28px); }
+    .node.n-github {
+      top: 40px;
+      left: calc(50% - 28px);
+    }
+
+    .node.n-slack {
+      bottom: 40px;
+      left: calc(50% - 28px);
+    }
+
+    .node.n-jira {
+      left: 40px;
+      top: calc(50% - 28px);
+    }
+
+    .node.n-sentry {
+      right: 40px;
+      top: calc(50% - 28px);
+    }
 
     .pulse-line {
       position: absolute;
@@ -677,13 +704,27 @@
 
     /* Keyframes */
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(4px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(4px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     @keyframes pulseCore {
-      0%, 100% { box-shadow: 0 0 30px rgba(99, 102, 241, 0.4); }
-      50% { box-shadow: 0 0 50px rgba(99, 102, 241, 0.7); }
+
+      0%,
+      100% {
+        box-shadow: 0 0 30px rgba(99, 102, 241, 0.4);
+      }
+
+      50% {
+        box-shadow: 0 0 50px rgba(99, 102, 241, 0.7);
+      }
     }
 
     /* Responsive */
@@ -692,19 +733,24 @@
         grid-template-columns: 1fr;
         text-align: center;
       }
+
       .hero-desc {
         margin-left: auto;
         margin-right: auto;
       }
+
       .hero-ctas {
         justify-content: center;
       }
+
       .mockup-container {
         transform: none !important;
       }
+
       .terminal-section {
         grid-template-columns: 1fr;
       }
+
       .terminal-menu {
         border-right: none;
         border-bottom: 1px solid var(--border);
@@ -716,6 +762,7 @@
     }
   </style>
 </head>
+
 <body>
 
   <!-- Ambient Glow -->
@@ -727,7 +774,11 @@
   <header>
     <div class="nav-container">
       <a href="#" class="logo">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="color:#6366f1"><path d="m12 3-1.912 5.886L4 9.886l5.088 1.913L10.088 19 12 13.088 13.912 19l1.000-7.199L20 9.886l-6.088-1.000L12 3Z"/></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+          style="color:#6366f1">
+          <path
+            d="m12 3-1.912 5.886L4 9.886l5.088 1.913L10.088 19 12 13.088 13.912 19l1.000-7.199L20 9.886l-6.088-1.000L12 3Z" />
+        </svg>
         TEAM OPTIMIZATION PORTAL <span>(TOP)</span>
       </a>
       <nav class="nav-links">
@@ -749,14 +800,15 @@
           Powered by <span>Coral</span>.
         </h1>
         <p class="hero-desc">
-          Decode verbose crash stack traces, git pipelines, and active incidents in under 20ms. TOP consolidates Sentry, Slack, GitHub, and Jira into one unified SQL query engine.
+          Decode verbose crash stack traces, git pipelines, and active incidents in under 20ms. TOP consolidates Sentry,
+          Slack, GitHub, and Jira into one unified SQL query engine.
         </p>
         <div class="hero-ctas">
           <a href="http://localhost:5173" class="btn btn-primary">Launch Dashboard</a>
           <a href="#features" class="btn btn-secondary">Explore Features</a>
         </div>
       </div>
-      
+
       <div>
         <div class="mockup-container">
           <div class="mockup-header">
@@ -765,7 +817,7 @@
               <span class="mockup-dot yellow"></span>
               <span class="mockup-dot green"></span>
             </div>
-            <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>TOP Mission Control</span>
+            <span style={{ fontSize: '11px' , color: 'var(--text-dim)' }}>TOP Mission Control</span>
           </div>
           <div style="display:flex; flex-direction:column; gap:12px;">
             <div class="mockup-card">
@@ -774,7 +826,8 @@
               <p class="mockup-body">Coral resolved workflow execution parameters directly inside WSL in 12ms.</p>
             </div>
             <div class="mockup-card" style="opacity: 0.85;">
-              <span class="mockup-pill" style="background-color:rgba(239,68,68,0.15); color:var(--danger)">⚠️ Sentry Alert</span>
+              <span class="mockup-pill" style="background-color:rgba(239,68,68,0.15); color:var(--danger)">⚠️ Sentry
+                Alert</span>
               <span class="mockup-title">ZeroDivisionError: division by zero in auth.py</span>
               <p class="mockup-body">Identified 3 Slack conversations discussing this incident.</p>
             </div>
@@ -788,33 +841,43 @@
   <section id="features" class="section-container">
     <div class="section-title-wrap">
       <h2 class="section-title">The Coral Query Framework</h2>
-      <p class="section-desc">Traditional interfaces are slow and split across multiple pages. TOP leverages Coral to query your entire system as standard relational SQL databases.</p>
+      <p class="section-desc">Traditional interfaces are slow and split across multiple pages. TOP leverages Coral to
+        query your entire system as standard relational SQL databases.</p>
     </div>
-    
+
     <div class="features-grid">
       <!-- Feature 1 -->
       <div class="feature-card">
         <div class="feature-icon-box">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 22V4c0-.5.2-1 .6-1.4C5 2.2 5.5 2 6 2h12c.5 0 1 .2 1.4.6.4.4.6.9.6 1.4v18l-5-4-5 4-5-4Z"/></svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 22V4c0-.5.2-1 .6-1.4C5 2.2 5.5 2 6 2h12c.5 0 1 .2 1.4.6.4.4.6.9.6 1.4v18l-5-4-5 4-5-4Z" />
+          </svg>
         </div>
         <h3 class="feature-name">Unified SQL Adaptation</h3>
-        <p class="feature-desc">Treat Jira, GitHub, Slack, and Sentry as standard SQL databases. Query cross-source metrics inside one single unified database view.</p>
+        <p class="feature-desc">Treat Jira, GitHub, Slack, and Sentry as standard SQL databases. Query cross-source
+          metrics inside one single unified database view.</p>
       </div>
       <!-- Feature 2 -->
       <div class="feature-card">
         <div class="feature-icon-box">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8Z"/></svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8Z" />
+          </svg>
         </div>
         <h3 class="feature-name">Sub-20ms WSL Pipeline</h3>
-        <p class="feature-desc">All queries execute asynchronously against Coral's native WSL Ubuntu-24.04 CLI, compiling raw telemetry speeds in milliseconds.</p>
+        <p class="feature-desc">All queries execute asynchronously against Coral's native WSL Ubuntu-24.04 CLI,
+          compiling raw telemetry speeds in milliseconds.</p>
       </div>
       <!-- Feature 3 -->
       <div class="feature-card">
         <div class="feature-icon-box">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          </svg>
         </div>
         <h3 class="feature-name">100% Fail-Safe Redirection</h3>
-        <p class="feature-desc">Includes a fail-fast 3-second Coral timeout. If a query times out or fails, the backend instantly runs direct REST API fetches to protect layouts.</p>
+        <p class="feature-desc">Includes a fail-fast 3-second Coral timeout. If a query times out or fails, the backend
+          instantly runs direct REST API fetches to protect layouts.</p>
       </div>
     </div>
   </section>
@@ -823,25 +886,34 @@
   <section id="terminal" class="section-container">
     <div class="section-title-wrap">
       <h2 class="section-title">Query Console Playground</h2>
-      <p class="section-desc">Try running some real-time Coral SQL queries. Select a template on the left and see how Coral compiles WS telemetry.</p>
+      <p class="section-desc">Try running some real-time Coral SQL queries. Select a template on the left and see how
+        Coral compiles WS telemetry.</p>
     </div>
 
     <div class="terminal-section">
       <div class="terminal-menu">
         <button class="terminal-btn active" onclick="runQuery('prs')">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m18 16 4-4-4-4M6 8l-4 4 4 4M14.5 4l-5 16"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="m18 16 4-4-4-4M6 8l-4 4 4 4M14.5 4l-5 16" />
+          </svg>
           Pull Requests
         </button>
         <button class="terminal-btn" onclick="runQuery('sentry')">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+          </svg>
           Sentry Exceptions
         </button>
         <button class="terminal-btn" onclick="runQuery('actions')">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 11-.57-8.38l5.67-5.67"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 11-.57-8.38l5.67-5.67" />
+          </svg>
           CI action runs
         </button>
         <button class="terminal-btn" onclick="runQuery('tickets')">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
+          </svg>
           Jira tickets
         </button>
       </div>
@@ -850,17 +922,18 @@
         <div class="terminal-box" id="terminalBox">
           <div class="terminal-line">
             <span class="terminal-prompt">$</span>
-            <span class="terminal-output" id="queryPrompt">SELECT number, title, state FROM github.pulls ORDER BY 1 DESC LIMIT 2;</span>
+            <span class="terminal-output" id="queryPrompt">SELECT number, title, state FROM github.pulls ORDER BY 1 DESC
+              LIMIT 2;</span>
           </div>
           <div class="terminal-line" id="terminalResponse">
             <span class="terminal-output" style="color:var(--text-dim)">
-+--------+---------------------------------------+--------+
-| number | title                                 | state  |
-+--------+---------------------------------------+--------+
-|   1482 | PatchLodash prototype vulnerability   | open   |
-|   1481 | Fix flakiness in webpack pipelines    | closed |
-+--------+---------------------------------------+--------+
-2 rows returned inside WSL. (WSL execution: 12ms)
+              +--------+---------------------------------------+--------+
+              | number | title | state |
+              +--------+---------------------------------------+--------+
+              | 1482 | PatchLodash prototype vulnerability | open |
+              | 1481 | Fix flakiness in webpack pipelines | closed |
+              +--------+---------------------------------------+--------+
+              2 rows returned inside WSL. (WSL execution: 12ms)
             </span>
           </div>
         </div>
@@ -872,17 +945,18 @@
   <section id="pulse" class="section-container">
     <div class="section-title-wrap">
       <h2 class="section-title">Telemetry Network Board</h2>
-      <p class="section-desc">TOP dynamically monitors network nodes, pulling platform activities through the Coral abstraction layer.</p>
+      <p class="section-desc">TOP dynamically monitors network nodes, pulling platform activities through the Coral
+        abstraction layer.</p>
     </div>
 
     <div class="integrations-box">
       <div class="pulse-line vertical"></div>
       <div class="pulse-line horizontal"></div>
-      
+
       <div class="central-core">
         CORAL
       </div>
-      
+
       <div class="nodes-container">
         <div class="node n-github">GitHub</div>
         <div class="node n-slack">Slack</div>
@@ -896,14 +970,17 @@
   <section id="compare" class="section-container" style="margin-bottom: 60px;">
     <div class="section-title-wrap">
       <h2 class="section-title">Speed Optimization Index</h2>
-      <p class="section-desc">Slide the bar to compare standard REST API query loads against Coral-accelerated unified caching.</p>
+      <p class="section-desc">Slide the bar to compare standard REST API query loads against Coral-accelerated unified
+        caching.</p>
     </div>
 
     <div class="compare-section">
       <div class="compare-controls">
-        <span style="font-size:12px; font-weight:700; color:var(--text-dim); text-transform:uppercase;">SWIPE TO OPTIMIZE TELEMETRY</span>
+        <span style="font-size:12px; font-weight:700; color:var(--text-dim); text-transform:uppercase;">SWIPE TO
+          OPTIMIZE TELEMETRY</span>
         <div class="slider-wrap">
-          <input type="range" min="0" max="100" value="0" class="slider" id="compareSlider" oninput="handleSliderChange(this.value)">
+          <input type="range" min="0" max="100" value="0" class="slider" id="compareSlider"
+            oninput="handleSliderChange(this.value)">
         </div>
       </div>
 
@@ -1005,7 +1082,7 @@
 
     function handleSliderChange(val) {
       const scale = val / 100;
-      
+
       const slowValEl = document.getElementById('slowVal');
       const legacyBarEl = document.getElementById('legacyBar');
       const fastValEl = document.getElementById('fastVal');
@@ -1023,4 +1100,5 @@
     }
   </script>
 </body>
+
 </html>

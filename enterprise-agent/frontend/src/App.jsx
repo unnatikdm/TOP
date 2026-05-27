@@ -154,19 +154,19 @@ const formatAsAsciiTable = (data) => {
   if (!data || !Array.isArray(data) || data.length === 0) {
     return "0 rows returned inside WSL. (WSL execution: 8ms)";
   }
-  
+
   if (data[0] && (data[0].status === "error" || data[0].status === "fail")) {
     return `Error executing query: ${data[0].message}\nEnsure the integration is connected.`;
   }
-  
+
   const headers = Object.keys(data[0]).filter(k => k !== 'url' && k !== 'html_url');
-  
+
   // Calculate column widths
   const widths = {};
   headers.forEach(h => {
     widths[h] = h.length;
   });
-  
+
   data.forEach(row => {
     headers.forEach(h => {
       const val = row[h] !== null && row[h] !== undefined ? String(row[h]) : '';
@@ -175,19 +175,19 @@ const formatAsAsciiTable = (data) => {
       }
     });
   });
-  
+
   // Build top border
   let border = '+';
   headers.forEach(h => {
     border += '-'.repeat(widths[h] + 2) + '+';
   });
-  
+
   // Build header row
   let headerRow = '|';
   headers.forEach(h => {
     headerRow += ' ' + h.padEnd(widths[h]).slice(0, widths[h]) + ' |';
   });
-  
+
   // Build rows
   const rows = [];
   data.forEach(row => {
@@ -201,7 +201,7 @@ const formatAsAsciiTable = (data) => {
     });
     rows.push(rStr);
   });
-  
+
   // Assemble table
   let table = border + '\n' + headerRow + '\n' + border + '\n';
   rows.forEach(r => {
@@ -301,7 +301,7 @@ function App() {
 
     const owner = backendStatus.github_owner || 'unnatikdm';
     const repo = backendStatus.github_repo || 'TOP';
-    
+
     const targetSql = targetSqlTemplate
       .replace(/\{\{OWNER\}\}/g, owner)
       .replace(/\{\{REPO\}\}/g, repo)
@@ -315,21 +315,21 @@ function App() {
       } else {
         clearInterval(interval);
         setTerminalOutput("Compiling Coral query...");
-        
+
         fetch('http://localhost:8000/api/query', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ query: targetSql })
         })
-        .then(res => res.json())
-        .then(data => {
-          setTerminalOutput(formatAsAsciiTable(data));
-          setIsTyping(false);
-        })
-        .catch(err => {
-          setTerminalOutput(`Network Error: ${err.message}\nEnsure backend server is running.`);
-          setIsTyping(false);
-        });
+          .then(res => res.json())
+          .then(data => {
+            setTerminalOutput(formatAsAsciiTable(data));
+            setIsTyping(false);
+          })
+          .catch(err => {
+            setTerminalOutput(`Network Error: ${err.message}\nEnsure backend server is running.`);
+            setIsTyping(false);
+          });
       }
     }, 8);
   };
@@ -618,24 +618,24 @@ function App() {
         const owner = data.github_owner || 'unnatikdm';
         const repo = data.github_repo || 'TOP';
         setParamValue(`https://github.com/${owner}/${repo}`);
-        
+
         // Fetch live default 'prs' query for initial terminal output on mount
         const initialSql = PRESET_TEMPLATES[0].sql
           .replace(/\{\{OWNER\}\}/g, owner)
           .replace(/\{\{REPO\}\}/g, repo);
-          
+
         fetch('http://localhost:8000/api/query', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ query: initialSql })
         })
-        .then(res => res.json())
-        .then(queryData => {
-          setTerminalOutput(formatAsAsciiTable(queryData));
-        })
-        .catch(() => {
-          setTerminalOutput("0 rows returned inside WSL. (WSL execution: 8ms)");
-        });
+          .then(res => res.json())
+          .then(queryData => {
+            setTerminalOutput(formatAsAsciiTable(queryData));
+          })
+          .catch(() => {
+            setTerminalOutput("0 rows returned inside WSL. (WSL execution: 8ms)");
+          });
       })
       .catch(() => setBackendStatus({ coral_installed: false }));
 
@@ -3550,28 +3550,28 @@ function App() {
                   </div>
                 )}
 
-              {/* Pagination Controls */}
-              {debugTotalResults > debugPageSize && (
-                <div className="pagination-controls">
-                  <button
-                    className="pagination-btn"
-                    disabled={debugPage <= 1}
-                    onClick={() => executeSearch(debugQuery, debugPage - 1)}
-                  >
-                    ← Previous
-                  </button>
-                  <span className="pagination-info">
-                    Page {debugPage} of {Math.ceil(debugTotalResults / debugPageSize)}
-                  </span>
-                  <button
-                    className="pagination-btn"
-                    disabled={debugPage >= Math.ceil(debugTotalResults / debugPageSize)}
-                    onClick={() => executeSearch(debugQuery, debugPage + 1)}
-                  >
-                    Next →
-                  </button>
-                </div>
-              )}
+                {/* Pagination Controls */}
+                {debugTotalResults > debugPageSize && (
+                  <div className="pagination-controls">
+                    <button
+                      className="pagination-btn"
+                      disabled={debugPage <= 1}
+                      onClick={() => executeSearch(debugQuery, debugPage - 1)}
+                    >
+                      ← Previous
+                    </button>
+                    <span className="pagination-info">
+                      Page {debugPage} of {Math.ceil(debugTotalResults / debugPageSize)}
+                    </span>
+                    <button
+                      className="pagination-btn"
+                      disabled={debugPage >= Math.ceil(debugTotalResults / debugPageSize)}
+                      onClick={() => executeSearch(debugQuery, debugPage + 1)}
+                    >
+                      Next →
+                    </button>
+                  </div>
+                )}
               </>
             )}
           </div>
