@@ -268,8 +268,15 @@ def fetch_slack_search(query: str):
                     }
                     for msg in messages
                 ]
-            elif data.get("error") == "invalid_auth":
-                return [{"error": True, "source": "Slack", "message": "Invalid authentication token. Please verify your token starts with xoxp- or xoxb-."}]
+            elif not data.get("ok"):
+                err = data.get("error")
+                if err == "invalid_auth":
+                    return [{"error": True, "source": "Slack", "message": "Invalid authentication token. Please verify your token starts with xoxp- or xoxb-."}]
+                elif err == "missing_scope":
+                    needed = data.get("needed", "search:read")
+                    return [{"error": True, "source": "Slack", "message": f"Token is missing required scope: {needed}."}]
+                else:
+                    return [{"error": True, "source": "Slack", "message": f"Slack API error: {err}."}]
     except Exception as e:
         if hasattr(e, 'code') and e.code == 401:
             return [{"error": True, "source": "Slack", "message": "Invalid authentication token. Please verify your token."}]
