@@ -1149,6 +1149,124 @@ def execute_pr_reaper(params: Dict[str, Any]):
 
     return items
 
+def execute_code_owner(params: Dict[str, Any]):
+    owner, repo = parse_owner_repo(params)
+    if not owner or not repo:
+        raise HTTPException(status_code=400, detail="OWNER and REPO required for Who Owns?")
+
+    # Fetch latest 50 commits to analyze
+    query = (
+        f"SELECT commit__author__name as author, commit__message as message, commit__author__date as date, html_url as url "
+        f"FROM github.commits "
+        f"WHERE owner = '{owner}' AND repo = '{repo}' "
+        f"ORDER BY commit__author__date DESC "
+        f"LIMIT 50"
+    )
+    
+    commits = []
+    try:
+        output = run_coral_query(query)
+        commits = json.loads(output)
+        if not isinstance(commits, list):
+            raise Exception("Invalid Coral commits response format")
+        # Check if we have valid non-Unknown authors
+        valid_authors = [c.get("author") for c in commits if c.get("author") and str(c.get("author")).lower() != "unknown"]
+        if not valid_authors:
+            raise Exception("Coral database contains no valid author names, triggering REST fallback")
+    except Exception as e:
+        print("Coral commits fetch failed for Who Owns?, falling back to direct GitHub REST API:", e)
+        try:
+            raw_commits = fetch_github_api(f"/repos/{owner}/{repo}/commits?per_page=50")
+            commits = []
+            for c in raw_commits:
+                commit_obj = c.get("commit", {})
+                git_name = commit_obj.get("author", {}).get("name")
+                author_name = (
+                    git_name if (git_name and git_name.lower() != "unknown") else None
+                ) or (
+                    c.get("author") and c.get("author", {}).get("login")
+                ) or (
+                    commit_obj.get("committer", {}).get("name")
+                ) or (
+                    c.get("committer") and c.get("committer", {}).get("login")
+                ) or "Unknown"
+                
+                commits.append({
+                    "author": author_name,
+                    "message": commit_obj.get("message", "No message"),
+                    "date": commit_obj.get("author", {}).get("date", ""),
+                    "url": c.get("html_url", "")
+                })
+        except Exception as api_e:
+            print("Direct GitHub API fallback also failed:", api_e)
+            
+    if not commits:
+        return [
+            {
+                "category": "Summary",
+                "title": "Repository Ownership",
+                "message": f"This repository ({owner}/{repo}) is owned by **{owner}**.",
+                "status": f"Owner: {owner}",
+                "action": "Ensure your GitHub credentials are configured in Setup to load author contributions."
+            }
+        ]
+
+    # Group by author
+    author_data = {}
+    for c in commits:
+        author_name = c.get("author") or "Unknown"
+        message = c.get("message") or "No message"
+        date = c.get("date") or ""
+        url = c.get("url") or ""
+        
+        # Clean up commit message (first line only as commit name)
+        commit_name = message.split("\n")[0].strip()
+        
+        if author_name not in author_data:
+            author_data[author_name] = {
+                "commits": [],
+                "latest_date": date,
+                "url": url
+            }
+        
+        # Add commit name
+        author_data[author_name]["commits"].append(commit_name)
+        if date > author_data[author_name]["latest_date"]:
+            author_data[author_name]["latest_date"] = date
+            author_data[author_name]["url"] = url
+
+    # Sort authors by commit count descending
+    sorted_authors = sorted(author_data.items(), key=lambda x: len(x[1]["commits"]), reverse=True)
+
+    items = [
+        {
+            "category": "Summary",
+            "title": "Repository Ownership",
+            "message": f"This repository ({owner}/{repo}) is owned by **{owner}**.",
+            "status": f"Owner: {owner}",
+            "action": "Click 'View In-depth Analysis' on any author card to inspect their recent commit names."
+        }
+    ]
+
+    for author_name, data in sorted_authors[:10]:
+        commit_count = len(data["commits"])
+        # Format the message containing commit names/messages
+        commit_list_str = "\n".join([f"* {c}" for c in data["commits"][:5]])
+        if commit_count > 5:
+            commit_list_str += f"\n* ... and {commit_count - 5} more commits."
+            
+        items.append({
+            "category": "Author Ownership",
+            "title": author_name,
+            "message": f"Author **{author_name}** made {commit_count} commits in this repository.\n\n### Commit Names:\n{commit_list_str}",
+            "status": f"{commit_count} commits",
+            "details": f"Latest activity: {data['latest_date']}",
+            "url": data["url"],
+            "action": "Review this author's code contributions or contact them."
+        })
+
+    return items
+
 @app.get("/api/skills")
 def list_skills():
     skills = []
@@ -1163,6 +1281,8 @@ def execute_skill(req: SkillExecutionRequest):
         return execute_failure_hunter(req.params)
     if req.skill_id == "pr_reaper":
         return execute_pr_reaper(req.params)
+    if req.skill_id == "code_owner":
+        return execute_code_owner(req.params)
 
     file_path = os.path.join(SKILLS_DIR, f"{req.skill_id}.sql")
     if not os.path.exists(file_path):
