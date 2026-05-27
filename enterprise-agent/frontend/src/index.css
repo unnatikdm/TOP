@@ -684,3 +684,29 @@ td {
     flex-wrap: wrap;
   }
 }
+
+/* Source Select Dropdown */
+.searchbar-source-select {
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  outline: none;
+  cursor: pointer;
+  padding: 4px;
+  border-right: 1px solid var(--border);
+  margin-right: 8px;
+  transition: color 0.2s;
+}
+
+.searchbar-source-select:hover,
+.searchbar-source-select:focus {
+  color: var(--accent);
+}
+
+.searchbar-source-select option {
+  background: var(--bg-card);
+  color: var(--text-main);
+}
