@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './index.css';
+import SearchBar from './components/SearchBar';
 import {
   MessageSquare,
   AlertCircle,
@@ -40,7 +41,7 @@ const getOutputBreakdown = (message, title, category) => {
       const trimmed = item.trim();
       return trimmed.startsWith('#') || /^[A-Z]+-\d+:?/i.test(trimmed);
     }).length >= 2;
-    
+
     if (isRealList && items.length > 1) {
       const summary = `Found ${items.length} key ${category || 'items'} related to this run.`;
       const details = (
@@ -87,7 +88,7 @@ const getCardMetadata = (res) => {
   const author = res.author || res.commit__author__name || res.user__login || res.commit__author || null;
   const date = res.timestamp || res.commit__author__date || res.created_at || res.updated_at || null;
   const sha = res.hash || res.sha || res.head_sha || null;
-  
+
   if (!author && !date && !sha) return null;
   return { author, date, sha };
 };
@@ -202,6 +203,29 @@ function App() {
   const [debugSummarizing, setDebugSummarizing] = useState({});
   const [debugActiveTabs, setDebugActiveTabs] = useState({});
 
+  // Pagination states for Debug Assistant
+  const [debugPage, setDebugPage] = useState(1);
+  const [debugPageSize] = useState(20);
+  const [debugTotalResults, setDebugTotalResults] = useState(0);
+
+  // Repositories Dropdown State
+  const [userRepos, setUserRepos] = useState([]);
+  const [isCustomLink, setIsCustomLink] = useState(false);
+
+  useEffect(() => {
+    fetch('http://localhost:8000/api/repos')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setUserRepos(data);
+          // Auto-select first repo if custom link is not forced
+          if (data.length > 0 && paramValue === 'https://github.com/open-metadata/OpenMetadata') {
+            setParamValue(data[0].url);
+          }
+        }
+      })
+      .catch(err => console.error("Failed to fetch repos", err));
+  }, []);
 
   // States for Query Console
   const [sqlQuery, setSqlQuery] = useState("SELECT number, title, state, user__login FROM github.pulls WHERE owner = '{{OWNER}}' AND repo = '{{REPO}}' ORDER BY created_at DESC LIMIT 10;");
@@ -295,7 +319,7 @@ function App() {
           return { owner: parts[0], repo: parts[1].replace(/\.git$/, '') };
         }
       }
-    } catch (e) {}
+    } catch (e) { }
     const parts = val.split('/').filter(Boolean);
     if (parts.length >= 2) {
       return { owner: parts[0], repo: parts[1].replace(/\.git$/, '') };
@@ -310,7 +334,7 @@ function App() {
     if (isExpanding && !tableColumns[tableName]) {
       setLoadingColumns(prev => ({ ...prev, [tableName]: true }));
       try {
-        const response = await fetch(`http://localhost:8000/api/columns/${tableName}`);
+        const response = await fetch(`http://127.0.0.1:8000/api/columns/${tableName}`);
         if (response.ok) {
           const data = await response.json();
           setTableColumns(prev => ({ ...prev, [tableName]: data }));
@@ -357,7 +381,7 @@ function App() {
       .replace(/\{\{QUERY\}\}/g, parsedKeyword);
 
     try {
-      const response = await fetch('http://localhost:8000/api/query', {
+      const response = await fetch('http://127.0.0.1:8000/api/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: interpolatedQuery })
@@ -397,7 +421,7 @@ function App() {
     if (isExpanding && !summaries[index] && message) {
       setSummarizing(prev => ({ ...prev, [index]: true }));
       try {
-        const response = await fetch('http://localhost:8000/api/summarize', {
+        const response = await fetch('http://127.0.0.1:8000/api/summarize', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message, title, category })
@@ -422,7 +446,7 @@ function App() {
     if (isExpanding && !debugSummaries[index] && message) {
       setDebugSummarizing(prev => ({ ...prev, [index]: true }));
       try {
-        const response = await fetch('http://localhost:8000/api/summarize', {
+        const response = await fetch('http://127.0.0.1:8000/api/summarize', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message, title, category })
@@ -437,7 +461,7 @@ function App() {
     }
   };
 
-  const executeSearch = async (queryToSearch) => {
+  const executeSearch = async (queryToSearch, page = 1) => {
     const searchVal = queryToSearch !== undefined ? queryToSearch : debugQuery;
     if (!searchVal.trim()) return;
 
@@ -448,18 +472,50 @@ function App() {
     setDebugSummaries({});
     setDebugSummarizing({});
     setDebugActiveTabs({});
+    setDebugPage(page);
+
+    let parsedOwner = null;
+    let parsedRepo = null;
 
     try {
-      const response = await fetch('http://localhost:8000/api/search', {
+      if (paramValue) {
+        let url = new URL(paramValue);
+        if (url.hostname.includes('github.com')) {
+          const parts = url.pathname.split('/').filter(Boolean);
+          if (parts.length >= 2) {
+            parsedOwner = parts[0];
+            parsedRepo = parts[1].replace(/\.git$/, '');
+          }
+        }
+      }
+    } catch (e) {
+      // Fallback to string splitting if it's just "owner/repo"
+      const parts = paramValue.split('/').filter(Boolean);
+      if (parts.length >= 2) {
+        parsedOwner = parts[0];
+        parsedRepo = parts[1].replace(/\.git$/, '');
+      }
+    }
+
+    try {
+      const response = await fetch('http://127.0.0.1:8000/api/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: searchVal })
+        body: JSON.stringify({
+          query: searchVal,
+          owner: parsedOwner,
+          repo: parsedRepo,
+          page: page,
+          page_size: debugPageSize
+        })
       });
       const data = await response.json();
       if (!response.ok) {
         setDebugError(data.detail || data.message || 'Failed to complete search.');
       } else {
         setDebugResults(data);
+        setDebugTotalResults(data.total_results || 0);
+        setDebugPage(data.page || page);
       }
     } catch (err) {
       console.error(err);
@@ -470,7 +526,6 @@ function App() {
   };
 
   const [toolCache, setToolCache] = useState({});
-
 
   const handleToolSwitch = (newTool) => {
     // Save current active tool states
@@ -489,7 +544,7 @@ function App() {
 
     // Retrieve cached states or load defaults
     const cached = toolCache[newTool.id] || {};
-    
+
     setResults(cached.results !== undefined ? cached.results : null);
     setExpandedCards(cached.expandedCards || {});
     setSummaries(cached.summaries || {});
@@ -514,7 +569,7 @@ function App() {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     // Check backend status
-    fetch('http://localhost:8000/api/status')
+    fetch('http://127.0.0.1:8000/api/status')
       .then(res => res.json())
       .then(data => setBackendStatus(data))
       .catch(() => setBackendStatus({ coral_installed: false }));
@@ -522,42 +577,42 @@ function App() {
     // Sync saved tokens with backend on mount
     const savedGithub = localStorage.getItem('coral_github_token');
     if (savedGithub) {
-      fetch('http://localhost:8000/api/connect', {
+      fetch('http://127.0.0.1:8000/api/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ source: 'GitHub', token: savedGithub })
-      }).catch(() => {});
+      }).catch(() => { });
     }
     const savedSlack = localStorage.getItem('coral_slack_token');
     if (savedSlack) {
-      fetch('http://localhost:8000/api/connect', {
+      fetch('http://127.0.0.1:8000/api/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ source: 'Slack', token: savedSlack })
-      }).catch(() => {});
+      }).catch(() => { });
     }
     const savedJira = localStorage.getItem('coral_jira_token');
     if (savedJira) {
       const savedJiraUrl = localStorage.getItem('coral_jira_url');
       const savedJiraEmail = localStorage.getItem('coral_jira_email');
-      fetch('http://localhost:8000/api/connect', {
+      fetch('http://127.0.0.1:8000/api/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ source: 'Jira', token: savedJira, jira_url: savedJiraUrl, jira_email: savedJiraEmail })
-      }).catch(() => {});
+      }).catch(() => { });
     }
     const savedSentry = localStorage.getItem('coral_sentry_token');
     if (savedSentry) {
       const savedSentryOrg = localStorage.getItem('coral_sentry_org');
-      fetch('http://localhost:8000/api/connect', {
+      fetch('http://127.0.0.1:8000/api/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ source: 'Sentry', token: savedSentry, sentry_org: savedSentryOrg })
-      }).catch(() => {});
+      }).catch(() => { });
     }
 
     // Fetch real tables
-    fetch('http://localhost:8000/api/tables')
+    fetch('http://127.0.0.1:8000/api/tables')
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) setTables(data);
@@ -591,7 +646,7 @@ function App() {
 
   const handleConnect = async (source, token, extraData = {}) => {
     try {
-      const response = await fetch('http://localhost:8000/api/connect', {
+      const response = await fetch('http://127.0.0.1:8000/api/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ source, token, ...extraData })
@@ -675,7 +730,7 @@ function App() {
         fullRepoName = `${parsedOwner}/${parsedRepo}`;
       }
 
-      const response = await fetch('http://localhost:8000/api/execute', {
+      const response = await fetch('http://127.0.0.1:8000/api/execute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -818,6 +873,43 @@ function App() {
           color: white;
         }
 
+        .nav-item[data-tooltip] {
+          position: relative;
+        }
+
+        .nav-item[data-tooltip]::after {
+          content: attr(data-tooltip);
+          position: absolute;
+          left: 50%;
+          top: calc(100% + 8px);
+          transform: translateX(-50%) translateY(4px);
+          background: var(--bg-card);
+          color: var(--text-main);
+          border: 1px solid var(--border);
+          padding: 8px 12px;
+          border-radius: 8px;
+          font-size: 11px;
+          font-weight: 600;
+          font-family: 'Inter', sans-serif;
+          white-space: normal;
+          width: max-content;
+          max-width: 200px;
+          text-align: center;
+          z-index: 9999;
+          box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+          pointer-events: none;
+          opacity: 0;
+          transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        .nav-item[data-tooltip]:hover::after {
+          opacity: 1;
+          transform: translateX(-50%) translateY(0);
+        }
+
+        .nav-item.active[data-tooltip]::after {
+          background: var(--bg-sidebar);
+        }
 
 
         .card {
@@ -1470,7 +1562,7 @@ function App() {
           text-align: left !important;
           font-family: var(--font-body) !important;
           font-size: 13px !important;
-          font-weight: 600 !important;
+          fontWeight: 600 !important;
           color: var(--text-dim) !important;
           cursor: pointer !important;
           transition: all 0.2s !important;
@@ -1861,13 +1953,6 @@ function App() {
           background: rgba(255, 255, 255, 0.05) !important;
         }
 
-          0%, 100% { opacity: 0.6; }
-          50% { opacity: 1; }
-        }
-
-        .pulse {
-          animation: pulse 1.5s ease-in-out infinite !important;
-        }
 
         /* Debug Assistant Styles */
         .debug-search-section {
@@ -2042,12 +2127,6 @@ function App() {
         }
 
         .debug-source-title.sentry { color: #f87171 !important; }
-          align-items: center !important;
-          gap: 8px !important;
-          padding-left: 4px !important;
-        }
-
-        .debug-source-title.sentry { color: #f87171 !important; }
         .debug-source-title.slack { color: #34d399 !important; }
         .debug-source-title.jira { color: #60a5fa !important; }
         .debug-source-title.github { color: #a78bfa !important; }
@@ -2113,7 +2192,7 @@ function App() {
             <div
               className={`nav-item ${view === 'dashboard' ? 'active' : ''}`}
               onClick={() => setView('dashboard')}
-              title="Main tools for developers."
+              data-tooltip="Main tools for developers."
             >
               <LayoutDashboard size={18} />
               <span>Dashboard</span>
@@ -2121,7 +2200,7 @@ function App() {
             <div
               className={`nav-item ${view === 'database' ? 'active' : ''}`}
               onClick={() => setView('database')}
-              title="Write and run custom SQL queries via Coral."
+              data-tooltip="Write and run custom SQL queries via Coral."
             >
               <TerminalSquare size={18} />
               <span>Query Console</span>
@@ -2129,7 +2208,7 @@ function App() {
             <div
               className={`nav-item ${view === 'debug_assistant' ? 'active' : ''}`}
               onClick={() => setView('debug_assistant')}
-              title="Search cross-platform debug history."
+              data-tooltip="Search cross-platform debug history."
             >
               <HelpCircle size={18} />
               <span>Debug Assistant</span>
@@ -2137,7 +2216,7 @@ function App() {
             <div
               className={`nav-item ${view === 'setup' ? 'active' : ''}`}
               onClick={() => setView('setup')}
-              title="Configure your API keys."
+              data-tooltip="Configure your API keys."
             >
               <Settings size={18} />
               <span>Setup</span>
@@ -2154,7 +2233,7 @@ function App() {
                   key={tool.id}
                   className={`nav-item ${activeTool.id === tool.id ? 'active' : ''}`}
                   onClick={() => handleToolSwitch(tool)}
-                  title={tool.tooltip}
+                  data-tooltip={tool.tooltip}
                 >
                   <tool.icon size={18} />
                   <span>{tool.name}</span>
@@ -2225,7 +2304,7 @@ function App() {
                     <a href="#features" className="btn btn-secondary">Explore Features</a>
                   </div>
                 </div>
-                
+
                 <div>
                   <div className="mockup-container">
                     <div className="mockup-header">
@@ -2259,12 +2338,12 @@ function App() {
                 <h2 className="section-title">TOP Core Architecture</h2>
                 <p className="section-desc">Traditional troubleshooting is fragmented. The Team Optimization Portal unites real-time unified data querying with robust offline LLM intelligence.</p>
               </div>
-              
+
               <div className="features-grid">
                 {/* Feature 1 */}
                 <div className="feature-card">
                   <div className="feature-icon-box">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M4 22V4c0-.5.2-1 .6-1.4C5 2.2 5.5 2 6 2h12c.5 0 1 .2 1.4.6.4.4.6.9.6 1.4v18l-5-4-5 4-5-4Z"/></svg>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M4 22V4c0-.5.2-1 .6-1.4C5 2.2 5.5 2 6 2h12c.5 0 1 .2 1.4.6.4.4.6.9.6 1.4v18l-5-4-5 4-5-4Z" /></svg>
                   </div>
                   <h3 className="feature-name">Unified SQL Adaptation</h3>
                   <p className="feature-desc">Treat Jira, GitHub, Slack, and Sentry as standard SQL databases. Query cross-source metrics inside one single unified database view powered by Coral.</p>
@@ -2272,7 +2351,7 @@ function App() {
                 {/* Feature 2 */}
                 <div className="feature-card">
                   <div className="feature-icon-box">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8Z"/></svg>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8Z" /></svg>
                   </div>
                   <h3 className="feature-name">High-Performance WSL Pipeline</h3>
                   <p className="feature-desc">Execute queries asynchronously inside TOP's WSL Ubuntu telemetry pipeline in milliseconds for ultra-responsive feedback loops.</p>
@@ -2280,7 +2359,7 @@ function App() {
                 {/* Feature 3 */}
                 <div className="feature-card">
                   <div className="feature-icon-box">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" /></svg>
                   </div>
                   <h3 className="feature-name">Triple-Layer LLM System</h3>
                   <p className="feature-desc">Our Triple-Layer LLM system uses a robust 3-tier architecture: Tier 1 (Local Ollama llama3.2) for offline private queries, fallback Tier 2 (Cloud Pollinations OpenAI) for zero-auth remote reasoning, and a final Tier 3 (Local Heuristic NLP) to guarantee structural summaries under any network conditions.</p>
@@ -2288,7 +2367,7 @@ function App() {
                 {/* Feature 4 */}
                 <div className="feature-card">
                   <div className="feature-icon-box">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
                   </div>
                   <h3 className="feature-name">Reliability & Fallbacks</h3>
                   <p className="feature-desc">Fail-safe 3-second request routing. If a WSL query times out or fails, TOP instantly triggers REST API fallback fetches to ensure absolute layout integrity.</p>
@@ -2306,19 +2385,19 @@ function App() {
               <div className="terminal-section">
                 <div className="terminal-menu">
                   <button className={`terminal-btn ${activePreset === 'prs' ? 'active' : ''}`} onClick={() => runLandingQuery('prs')}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="m18 16 4-4-4-4M6 8l-4 4 4 4M14.5 4l-5 16"/></svg>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="m18 16 4-4-4-4M6 8l-4 4 4 4M14.5 4l-5 16" /></svg>
                     Pull Requests
                   </button>
                   <button className={`terminal-btn ${activePreset === 'sentry' ? 'active' : ''}`} onClick={() => runLandingQuery('sentry')}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
                     Sentry Exceptions
                   </button>
                   <button className={`terminal-btn ${activePreset === 'actions' ? 'active' : ''}`} onClick={() => runLandingQuery('actions')}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 11-.57-8.38l5.67-5.67"/></svg>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 11-.57-8.38l5.67-5.67" /></svg>
                     CI Action Runs
                   </button>
                   <button className={`terminal-btn ${activePreset === 'tickets' ? 'active' : ''}`} onClick={() => runLandingQuery('tickets')}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/></svg>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" /></svg>
                     Jira Tickets
                   </button>
                 </div>
@@ -2333,7 +2412,7 @@ function App() {
                       {isTyping && !terminalOutput ? (
                         <div className="terminal-loader">
                           <svg width="12" height="12" className="spin" style={{ animation: 'spin 1s linear infinite' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
-                            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
                           </svg>
                           <span> Compiling query...</span>
                         </div>
@@ -2358,11 +2437,11 @@ function App() {
               <div className="integrations-box">
                 <div className="pulse-line vertical"></div>
                 <div className="pulse-line horizontal"></div>
-                
+
                 <div className="central-core">
                   CORAL
                 </div>
-                
+
                 <div className="nodes-container">
                   <div className="node n-github">GitHub</div>
                   <div className="node n-slack">Slack</div>
@@ -2385,13 +2464,13 @@ function App() {
                     SWIPE TO OPTIMIZE TELEMETRY
                   </span>
                   <div className="slider-wrap">
-                    <input 
-                      type="range" 
-                      min="0" 
-                      max="100" 
-                      value={compareVal} 
-                      className="slider" 
-                      id="compareSlider" 
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={compareVal}
+                      className="slider"
+                      id="compareSlider"
                       onChange={(e) => setCompareVal(parseInt(e.target.value))}
                     />
                   </div>
@@ -2404,9 +2483,9 @@ function App() {
                     <span className="chart-bar-val slow" id="slowVal">
                       {(5.2 - ((compareVal / 100) * 2.8)).toFixed(2)}s
                     </span>
-                    <div 
-                      className="chart-bar legacy" 
-                      id="legacyBar" 
+                    <div
+                      className="chart-bar legacy"
+                      id="legacyBar"
                       style={{ height: `${140 - ((compareVal / 100) * 80)}px` }}
                     />
                   </div>
@@ -2416,9 +2495,9 @@ function App() {
                     <span className="chart-bar-val fast" id="fastVal">
                       {(0.02 - ((compareVal / 100) * 0.015)).toFixed(3)}s
                     </span>
-                    <div 
-                      className="chart-bar coral" 
-                      id="coralBar" 
+                    <div
+                      className="chart-bar coral"
+                      id="coralBar"
                       style={{ height: `${2 + ((compareVal / 100) * 12)}px` }}
                     />
                   </div>
@@ -2428,7 +2507,7 @@ function App() {
 
             {/* Footer */}
             <footer>
-              <p>Enjoy Your Work with TOP.</p>
+              <p>© 2026 Team Optimization Portal (TOP). All rights reserved. Powered by the Coral query framework.</p>
             </footer>
           </div>
         ) : view === 'dashboard' ? (
@@ -2471,12 +2550,12 @@ function App() {
                     const isSummary = res.category === 'Summary' || res.status === 'summary';
                     const title = res.title || res.category || res.status || 'Result';
                     const statusValue = res.reason || res.status || res.state || 'N/A';
-                    const isOpen = statusValue.toString().toLowerCase().includes('open') || 
-                                   statusValue.toString().toLowerCase().includes('action') || 
-                                   statusValue.toString().toLowerCase().includes('missing') ||
-                                   statusValue.toString().toLowerCase().includes('error') ||
-                                   statusValue.toString().toLowerCase().includes('fail') ||
-                                   statusValue.toString().toLowerCase().includes('failure');
+                    const isOpen = statusValue.toString().toLowerCase().includes('open') ||
+                      statusValue.toString().toLowerCase().includes('action') ||
+                      statusValue.toString().toLowerCase().includes('missing') ||
+                      statusValue.toString().toLowerCase().includes('error') ||
+                      statusValue.toString().toLowerCase().includes('fail') ||
+                      statusValue.toString().toLowerCase().includes('failure');
 
                     if (isSummary) {
                       return (
@@ -2498,7 +2577,7 @@ function App() {
                     }
 
                     const metrics = parseMetrics(res.details);
-                    
+
                     // Icon matching based on category/title
                     const catLower = (res.category || '').toLowerCase();
                     const titleLower = (res.title || '').toLowerCase();
@@ -2554,7 +2633,7 @@ function App() {
                                   if (formattedDate === 'Invalid Date') {
                                     formattedDate = String(meta.date);
                                   }
-                                } catch (e) {}
+                                } catch (e) { }
                                 return (
                                   <>
                                     {meta.author && <span>•</span>}
@@ -2577,19 +2656,19 @@ function App() {
                         {res.message && (() => {
                           const { summary, details } = getOutputBreakdown(res.message, title, res.category);
                           const isExpanded = !!expandedCards[i];
-                          
+
                           return (
                             <div className="output-container">
                               <p className="result-card-desc">{summary}</p>
-                              
+
                               {details && (
                                 <div style={{ marginTop: '8px' }}>
-                                  <button 
+                                  <button
                                     className="btn btn-secondary btn-xs"
                                     onClick={() => toggleCard(i, res.message, title, res.category)}
-                                    style={{ 
-                                      display: 'inline-flex', 
-                                      alignItems: 'center', 
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
                                       gap: '4px',
                                       padding: '4px 8px',
                                       fontSize: '11px',
@@ -2600,7 +2679,7 @@ function App() {
                                     {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                                     {isExpanded ? 'Hide Details' : 'View In-depth Analysis'}
                                   </button>
-                                  
+
                                   {isExpanded && (
                                     <div className="expandable-details">
                                       {summarizing[i] ? (
@@ -2613,7 +2692,7 @@ function App() {
                                       ) : (
                                         <>
                                           <div style={{ display: 'flex', gap: '12px', borderBottom: '1px solid var(--border)', marginBottom: '12px', paddingBottom: '6px' }}>
-                                            <button 
+                                            <button
                                               onClick={() => setActiveTabs(prev => ({ ...prev, [i]: 'ai' }))}
                                               style={{
                                                 background: 'none',
@@ -2629,7 +2708,7 @@ function App() {
                                             >
                                               ✨ AI Agent Explanation
                                             </button>
-                                            <button 
+                                            <button
                                               onClick={() => setActiveTabs(prev => ({ ...prev, [i]: 'raw' }))}
                                               style={{
                                                 background: 'none',
@@ -2646,7 +2725,7 @@ function App() {
                                               💻 Raw Developer Logs
                                             </button>
                                           </div>
-                                          
+
                                           {(activeTabs[i] || 'ai') === 'ai' ? (
                                             <div style={{ fontFamily: "'Inter', sans-serif", whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
                                               {renderMarkdown(summaries[i])}
@@ -2673,9 +2752,9 @@ function App() {
                             'html_url', 'created_at', 'updated_at', 'timestamp', 'url'
                           ];
                           const customColumns = Object.entries(res).filter(([key]) => !standardKeys.includes(key));
-                          
+
                           if (customColumns.length === 0) return null;
-                          
+
                           return (
                             <div className="custom-fields-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px', marginTop: '12px' }}>
                               {customColumns.map(([key, val]) => (
@@ -2811,7 +2890,7 @@ function App() {
                     Double-click elements to insert them into your query editor.
                   </p>
                 </div>
-                
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {tables.length > 0 ? tables.map((table, i) => {
                     const fullTableName = `${table.schema_name}.${table.table_name}`;
@@ -2821,7 +2900,7 @@ function App() {
 
                     return (
                       <div key={i} className="schema-table-card" style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '10px', background: 'var(--bg-card)', cursor: 'pointer' }}>
-                        <div 
+                        <div
                           onClick={() => toggleTable(fullTableName)}
                           onDoubleClick={() => insertTextAtCursor(fullTableName)}
                           title={fullTableName}
@@ -2829,9 +2908,9 @@ function App() {
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flex: 1 }}>
                             <Database size={14} style={{ color: 'var(--accent)', flexShrink: 0 }} />
-                            <span style={{ 
-                              fontSize: '13px', 
-                              fontWeight: '600', 
+                            <span style={{
+                              fontSize: '13px',
+                              fontWeight: '600',
                               color: 'var(--text-main)',
                               textOverflow: 'ellipsis',
                               overflow: 'hidden',
@@ -2840,12 +2919,12 @@ function App() {
                               {table.table_name}
                             </span>
                           </div>
-                          <span style={{ 
-                            fontSize: '10px', 
-                            color: 'var(--accent)', 
-                            background: 'rgba(59, 130, 246, 0.1)', 
-                            padding: '2px 6px', 
-                            borderRadius: '4px', 
+                          <span style={{
+                            fontSize: '10px',
+                            color: 'var(--accent)',
+                            background: 'rgba(59, 130, 246, 0.1)',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
                             fontWeight: '700',
                             flexShrink: 0
                           }}>
@@ -2861,7 +2940,7 @@ function App() {
                                 <Loader2 className="spin" size={10} /> Loading columns...
                               </div>
                             ) : columns.length > 0 ? columns.map((col, idx) => (
-                              <div 
+                              <div
                                 key={idx}
                                 onDoubleClick={(e) => {
                                   e.stopPropagation();
@@ -2939,17 +3018,17 @@ function App() {
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <button 
-                      className="btn btn-secondary" 
+                    <button
+                      className="btn btn-secondary"
                       onClick={() => setSqlQuery('')}
                       style={{ padding: '8px 16px', fontSize: '13px' }}
                     >
                       Clear Editor
                     </button>
-                    
-                    <button 
-                      className="btn btn-primary" 
-                      onClick={executePlaygroundQuery} 
+
+                    <button
+                      className="btn btn-primary"
+                      onClick={executePlaygroundQuery}
                       disabled={queryLoading || !sqlQuery.trim()}
                       style={{ padding: '10px 24px', fontSize: '14px', boxShadow: '0 4px 14px rgba(59, 130, 246, 0.4)' }}
                     >
@@ -3026,8 +3105,8 @@ function App() {
                                   onChange={(e) => setSearchFilter(e.target.value)}
                                 />
                               </div>
-                              <button 
-                                className="btn btn-secondary" 
+                              <button
+                                className="btn btn-secondary"
                                 style={{ padding: '6px 12px', fontSize: '12px', height: '36px' }}
                                 onClick={() => {
                                   const text = JSON.stringify(queryResults, null, 2);
@@ -3053,9 +3132,9 @@ function App() {
                                 </thead>
                                 <tbody>
                                   {filteredRows.map((row, rIdx) => (
-                                    <tr 
-                                      key={rIdx} 
-                                      style={{ 
+                                    <tr
+                                      key={rIdx}
+                                      style={{
                                         background: rIdx % 2 === 0 ? 'var(--bg-card)' : 'transparent',
                                         transition: 'background-color 0.15s'
                                       }}
@@ -3122,53 +3201,92 @@ function App() {
               </p>
             </header>
 
-            <section className="debug-search-section">
-              <div className="debug-search-input-container">
-                <div className="debug-search-input-wrapper">
-                  <input
-                    type="text"
-                    className="debug-search-input"
-                    value={debugQuery}
-                    onChange={(e) => setDebugQuery(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') executeSearch();
-                    }}
-                    placeholder="e.g. DatabaseError: connection pool exhausted"
-                  />
-                  <Search className="debug-search-input-icon" size={20} />
+            {/* Global URL Parameter Input inside Debug Assistant */}
+            <section className="card" style={{ padding: '16px', marginBottom: '32px' }}>
+              <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: '240px' }}>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-dim)', marginBottom: '8px', letterSpacing: '0.05em' }}>
+                    🔗 Global Target Parameter URL / Link (GitHub, Slack, etc.)
+                  </label>
+                  {!isCustomLink ? (
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <select
+                        className="input"
+                        value={paramValue}
+                        onChange={(e) => {
+                          if (e.target.value === 'CUSTOM') {
+                            setIsCustomLink(true);
+                            setParamValue('');
+                          } else {
+                            setParamValue(e.target.value);
+                          }
+                        }}
+                        style={{ height: '38px', fontSize: '13px', flex: 1 }}
+                      >
+                        {userRepos.map(repo => (
+                          <option key={repo.url} value={repo.url}>{repo.name}</option>
+                        ))}
+                        {userRepos.length === 0 && (
+                          <option value="https://github.com/open-metadata/OpenMetadata">open-metadata/OpenMetadata</option>
+                        )}
+                        <option value="CUSTOM">Outside personal github...</option>
+                      </select>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input
+                        type="text"
+                        className="input"
+                        value={paramValue}
+                        onChange={(e) => setParamValue(e.target.value)}
+                        placeholder="e.g., https://github.com/owner/repo or slack/jira link"
+                        style={{ height: '38px', fontSize: '13px', flex: 1 }}
+                      />
+                      <button
+                        className="btn btn-secondary"
+                        onClick={() => {
+                          setIsCustomLink(false);
+                          if (userRepos.length > 0) setParamValue(userRepos[0].url);
+                        }}
+                        style={{ height: '38px', whiteSpace: 'nowrap', padding: '0 12px', fontSize: '12px' }}
+                      >
+                        Back to Repos
+                      </button>
+                    </div>
+                  )}
                 </div>
-                <button 
-                  className="btn btn-primary" 
-                  onClick={() => executeSearch()} 
-                  disabled={debugLoading}
-                  style={{ height: '48px', padding: '0 24px', borderRadius: '12px' }}
-                >
-                  {debugLoading ? <Zap className="spin" size={18} /> : <Search size={18} />}
-                  {debugLoading ? 'Searching...' : 'Search'}
-                </button>
+                <div style={{ padding: '8px 14px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '6px', border: '1px solid rgba(59, 130, 246, 0.2)', display: 'flex', flexDirection: 'column', gap: '2px', minWidth: '180px', height: '38px', justifyContent: 'center' }}>
+                  <span style={{ fontSize: '9px', textTransform: 'uppercase', color: 'var(--accent)', fontWeight: '800', letterSpacing: '0.05em' }}>Active Context Scope</span>
+                  <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '200px' }}>
+                    {(() => {
+                      const parsed = parseOwnerRepoFromValue(paramValue);
+                      return parsed ? `${parsed.owner}/${parsed.repo}` : paramValue || 'None (Global Scope)';
+                    })()}
+                  </span>
+                </div>
               </div>
+            </section>
 
-              <div className="debug-quick-links">
-                <span className="debug-quick-link-label">Suggested searches:</span>
-                <button 
-                  className="debug-quick-link-btn"
-                  onClick={() => {
-                    setDebugQuery('PostgreSQL connection pool exhausted');
-                    executeSearch('PostgreSQL connection pool exhausted');
-                  }}
-                >
-                  PostgreSQL connection pool exhausted
-                </button>
-                <button 
-                  className="debug-quick-link-btn"
-                  onClick={() => {
-                    setDebugQuery('NullPointerException in session auth');
-                    executeSearch('NullPointerException in session auth');
-                  }}
-                >
-                  NullPointerException in session auth
-                </button>
-              </div>
+            <section className="debug-search-section">
+              <SearchBar
+                value={debugQuery}
+                onChange={setDebugQuery}
+                onSearch={(q) => {
+                  setDebugQuery(q);
+                  executeSearch(q, 1);
+                }}
+                loading={debugLoading}
+                placeholder="e.g. DatabaseError: connection pool exhausted"
+                suggestions={[
+                  { label: 'PostgreSQL connection pool exhausted', value: 'PostgreSQL connection pool exhausted' },
+                  { label: 'NullPointerException in session auth', value: 'NullPointerException in session auth' }
+                ]}
+                onSuggestionClick={(val) => {
+                  setDebugQuery(val);
+                  executeSearch(val, 1);
+                }}
+                debounceMs={200}
+              />
             </section>
 
             {debugLoading && (
@@ -3189,7 +3307,7 @@ function App() {
             )}
 
             {debugResults && !debugLoading && (
-              <div>
+              <>
                 {/* 1. AI Insights Glowing Card */}
                 {debugResults.summary && (
                   <div className="ai-insights-glowing-card">
@@ -3206,13 +3324,13 @@ function App() {
                 {/* 2. Grouped Cards Grid */}
                 <div className="debug-results-header">
                   <span className="debug-results-count">
-                    Found {debugResults.results?.length || 0} matching logs and tickets across connected sources
+                    Showing {debugResults.results?.length || 0} of {debugTotalResults} matching logs and tickets (page {debugPage})
                   </span>
                 </div>
 
                 {debugResults.results && debugResults.results.length > 0 ? (
                   <div className="debug-source-groups">
-                    {['Sentry Exception', 'Jira Ticket', 'Slack Discussion', 'GitHub Issue'].map((sourceCategory) => {
+                    {['Sentry Exception', 'Jira Ticket', 'Slack Discussion', 'GitHub Issue', 'GitHub Commit'].map((sourceCategory) => {
                       const categoryMatches = debugResults.results.filter(item => item.category === sourceCategory);
                       if (categoryMatches.length === 0) return null;
 
@@ -3220,7 +3338,10 @@ function App() {
                       let SectionIcon = ShieldAlert;
                       if (sourceCategory.includes('Slack')) { sectionClass = 'slack'; SectionIcon = MessageSquare; }
                       if (sourceCategory.includes('Jira')) { sectionClass = 'jira'; SectionIcon = Link; }
-                      if (sourceCategory.includes('GitHub')) { sectionClass = 'github'; SectionIcon = AlertCircle; }
+                      if (sourceCategory.includes('GitHub') || sourceCategory.includes('Commit')) {
+                        sectionClass = 'github';
+                        SectionIcon = sourceCategory.includes('Commit') ? GitBranch : AlertCircle;
+                      }
 
                       return (
                         <div key={sourceCategory} className="debug-source-group">
@@ -3233,9 +3354,9 @@ function App() {
                               const globalIdx = debugResults.results.indexOf(res);
                               const title = res.title || res.category || res.status || 'Result';
                               const statusValue = res.reason || res.status || res.state || 'N/A';
-                              const isOpen = statusValue.toString().toLowerCase().includes('open') || 
-                                            statusValue.toString().toLowerCase().includes('action') || 
-                                            statusValue.toString().toLowerCase().includes('unresolved');
+                              const isOpen = statusValue.toString().toLowerCase().includes('open') ||
+                                statusValue.toString().toLowerCase().includes('action') ||
+                                statusValue.toString().toLowerCase().includes('unresolved');
 
                               return (
                                 <div key={globalIdx} className="result-card">
@@ -3264,19 +3385,19 @@ function App() {
                                   {res.message && (() => {
                                     const { summary, details } = getOutputBreakdown(res.message, title, res.category);
                                     const isExpanded = !!debugExpandedCards[globalIdx];
-                                    
+
                                     return (
                                       <div className="output-container">
                                         <p className="result-card-desc">{summary}</p>
-                                        
+
                                         {details && (
                                           <div style={{ marginTop: '8px' }}>
-                                            <button 
+                                            <button
                                               className="btn btn-secondary btn-xs"
                                               onClick={() => toggleDebugCard(globalIdx, res.message, title, res.category)}
-                                              style={{ 
-                                                display: 'inline-flex', 
-                                                alignItems: 'center', 
+                                              style={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
                                                 gap: '4px',
                                                 padding: '4px 8px',
                                                 fontSize: '11px',
@@ -3287,7 +3408,7 @@ function App() {
                                               {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                                               {isExpanded ? 'Hide Details' : 'View In-depth Analysis'}
                                             </button>
-                                            
+
                                             {isExpanded && (
                                               <div className="expandable-details">
                                                 {debugSummarizing[globalIdx] ? (
@@ -3300,7 +3421,7 @@ function App() {
                                                 ) : (
                                                   <>
                                                     <div style={{ display: 'flex', gap: '12px', borderBottom: '1px solid var(--border)', marginBottom: '12px', paddingBottom: '6px' }}>
-                                                      <button 
+                                                      <button
                                                         onClick={() => setDebugActiveTabs(prev => ({ ...prev, [globalIdx]: 'ai' }))}
                                                         style={{
                                                           background: 'none',
@@ -3316,7 +3437,7 @@ function App() {
                                                       >
                                                         ✨ AI Agent Explanation
                                                       </button>
-                                                      <button 
+                                                      <button
                                                         onClick={() => setDebugActiveTabs(prev => ({ ...prev, [globalIdx]: 'raw' }))}
                                                         style={{
                                                           background: 'none',
@@ -3333,7 +3454,7 @@ function App() {
                                                         💻 Raw Developer Logs
                                                       </button>
                                                     </div>
-                                                    
+
                                                     {(debugActiveTabs[globalIdx] || 'ai') === 'ai' ? (
                                                       <div style={{ fontFamily: "'Inter', sans-serif", whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
                                                         {renderMarkdown(debugSummaries[globalIdx])}
@@ -3363,7 +3484,30 @@ function App() {
                     <p style={{ fontSize: '14px', fontWeight: '500' }}>No historical logs or tickets found for this query.</p>
                   </div>
                 )}
-              </div>
+
+              {/* Pagination Controls */}
+              {debugTotalResults > debugPageSize && (
+                <div className="pagination-controls">
+                  <button
+                    className="pagination-btn"
+                    disabled={debugPage <= 1}
+                    onClick={() => executeSearch(debugQuery, debugPage - 1)}
+                  >
+                    ← Previous
+                  </button>
+                  <span className="pagination-info">
+                    Page {debugPage} of {Math.ceil(debugTotalResults / debugPageSize)}
+                  </span>
+                  <button
+                    className="pagination-btn"
+                    disabled={debugPage >= Math.ceil(debugTotalResults / debugPageSize)}
+                    onClick={() => executeSearch(debugQuery, debugPage + 1)}
+                  >
+                    Next →
+                  </button>
+                </div>
+              )}
+              </>
             )}
           </div>
         ) : (
@@ -3402,16 +3546,16 @@ function App() {
                           </span>
                         </div>
                         <div style={{ display: 'flex', gap: '6px' }}>
-                          <button 
-                            className="btn btn-secondary btn-xs" 
+                          <button
+                            className="btn btn-secondary btn-xs"
                             style={{ padding: '4px 8px', fontSize: '11px' }}
                             onClick={() => alert(`Connection integrity check passed for ${plat}!`)}
                           >
                             Test
                           </button>
                           {isConnected && (
-                            <button 
-                              className="btn btn-secondary btn-xs" 
+                            <button
+                              className="btn btn-secondary btn-xs"
                               style={{ padding: '4px 8px', fontSize: '11px', color: 'var(--danger)', borderColor: 'rgba(239, 68, 68, 0.2)' }}
                               onClick={() => handleRemoveConnection(plat)}
                             >
@@ -3441,11 +3585,11 @@ function App() {
                     <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '6px' }}>
                       📆 HANDOVER LOOKBACK HORIZON (DAYS)
                     </label>
-                    <input 
-                      type="number" 
-                      className="input" 
-                      style={{ height: '36px', fontSize: '13px' }} 
-                      value={lookbackDays} 
+                    <input
+                      type="number"
+                      className="input"
+                      style={{ height: '36px', fontSize: '13px' }}
+                      value={lookbackDays}
                       onChange={(e) => setLookbackDays(parseInt(e.target.value) || 7)}
                     />
                   </div>
@@ -3454,10 +3598,10 @@ function App() {
                     <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '6px' }}>
                       🛡️ SECURITY INCIDENT LEVEL THRESHOLD
                     </label>
-                    <select 
-                      className="input" 
-                      style={{ height: '36px', fontSize: '13px', padding: '6px 12px' }} 
-                      value={severityThreshold} 
+                    <select
+                      className="input"
+                      style={{ height: '36px', fontSize: '13px', padding: '6px 12px' }}
+                      value={severityThreshold}
                       onChange={(e) => setSeverityThreshold(e.target.value)}
                     >
                       <option value="low">Low & Above (All Events)</option>
@@ -3470,11 +3614,11 @@ function App() {
                     <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '6px' }}>
                       💬 Slack Channels to Monitor for Incidents
                     </label>
-                    <input 
-                      type="text" 
-                      className="input" 
-                      style={{ height: '36px', fontSize: '13px' }} 
-                      value={slackChannels} 
+                    <input
+                      type="text"
+                      className="input"
+                      style={{ height: '36px', fontSize: '13px' }}
+                      value={slackChannels}
                       onChange={(e) => setSlackChannels(e.target.value)}
                     />
                   </div>
@@ -3512,7 +3656,7 @@ function App() {
                       onClick={() => {
                         const tokenVal = prompt(`Enter ${item} API Token / Secret:`);
                         if (!tokenVal) return;
-                        
+
                         if (item === 'Jira') {
                           const urlVal = prompt("Enter Jira Base URL:", "https://your-domain.atlassian.net");
                           const emailVal = prompt("Enter Jira Account Email:");
@@ -3553,8 +3697,8 @@ function App() {
                       {cacheStats.size} ({cacheStats.queries} queries cached)
                     </span>
                   </div>
-                  <button 
-                    className="btn btn-secondary" 
+                  <button
+                    className="btn btn-secondary"
                     style={{ color: 'var(--danger)', borderColor: 'rgba(239, 68, 68, 0.3)', padding: '8px 16px', fontSize: '13px' }}
                     onClick={handleClearCache}
                   >
@@ -3607,8 +3751,8 @@ function App() {
                           </td>
                           <td style={{ padding: '10px 16px', textAlign: 'center' }}>
                             <div style={{ display: 'inline-flex', gap: '6px' }}>
-                              <button 
-                                className="btn btn-secondary btn-xs" 
+                              <button
+                                className="btn btn-secondary btn-xs"
                                 style={{ padding: '2px 6px', fontSize: '11px' }}
                                 onClick={() => loadHistoryToEditor(item.query)}
                               >

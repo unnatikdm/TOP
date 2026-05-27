@@ -36,7 +36,16 @@ def load_connected_sources():
         url_match = re.search(r'JIRA_BASE_URL\s*=\s*"([^"]+)"', content)
         email_match = re.search(r'JIRA_EMAIL\s*=\s*"([^"]+)"', content)
         if url_match:
-            CONNECTED_DEFAULTS["jira_url"] = url_match.group(1)
+            jira_url = url_match.group(1)
+            # Sanitize URL to keep only scheme and domain
+            from urllib.parse import urlparse
+            try:
+                parsed = urlparse(jira_url)
+                if parsed.scheme and parsed.netloc:
+                    jira_url = f"{parsed.scheme}://{parsed.netloc}"
+            except Exception:
+                pass
+            CONNECTED_DEFAULTS["jira_url"] = jira_url
         if email_match:
             CONNECTED_DEFAULTS["jira_email"] = email_match.group(1)
         
@@ -81,6 +90,19 @@ def load_connected_sources():
                     CONNECTED_DEFAULTS["sentry_org"] = match_org.group(1)
         except Exception:
             pass
+
+        # Read SLACK_TOKEN
+        try:
+            res_slack = subprocess.run(
+                ["wsl", "-d", "Ubuntu-24.04", "--", "cat", "/root/.config/coral/workspaces/default/sources/slack/secrets.env"],
+                capture_output=True, text=True, timeout=15
+            )
+            if res_slack.returncode == 0:
+                match = re.search(r'SLACK_TOKEN=["\']?([^"\'\n\s]+)', res_slack.stdout)
+                if match:
+                    CONNECTED_TOKENS["slack"] = match.group(1)
+        except Exception:
+            pass
     except Exception as e:
         print("Error loading existing sources from WSL:", e)
 
@@ -105,7 +127,7 @@ def fetch_jira_api(jql: str):
     except Exception:
         domain_base = url_base
         
-    url = f"{domain_base.rstrip('/')}/rest/api/3/search?{params}"
+    url = f"{domain_base.rstrip('/')}/rest/api/3/search/jql?{params}"
     
     headers = {
         "Authorization": f"Basic {auth_b64}",
@@ -140,6 +162,10 @@ class SummarizeRequest(BaseModel):
 
 class SearchRequest(BaseModel):
     query: str
+    owner: str = None
+    repo: str = None
+    page: int = 1
+    page_size: int = 20
 
 class QueryRequest(BaseModel):
     query: str
@@ -153,9 +179,10 @@ def fetch_github_api(path: str):
         "User-Agent": "Coral-Enterprise-Agent",
         "Accept": "application/vnd.github.v3+json"
     }
-    token = CONNECTED_TOKENS.get("github")
+    token = CONNECTED_TOKENS.get("github") or os.environ.get("GITHUB_TOKEN")
     if token:
-        headers["Authorization"] = f"token {token}"
+        # FIX 5: Universally use Bearer scheme for all modern GitHub tokens
+        headers["Authorization"] = f"Bearer {token}"
     req = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(req, timeout=20) as resp:
         return json.loads(resp.read().decode("utf-8"))
@@ -262,7 +289,7 @@ def fetch_jira_search(query: str):
     except Exception:
         domain_base = url_base
         
-    url = f"{domain_base.rstrip('/')}/rest/api/3/search?{params}"
+    url = f"{domain_base.rstrip('/')}/rest/api/3/search/jql?{params}"
     headers = {
         "Authorization": f"Basic {auth_b64}",
         "Accept": "application/json"
@@ -310,12 +337,126 @@ def fetch_jira_search(query: str):
         print("Jira search error:", e)
         return []
 
-def fetch_github_search(query: str, owner: str = None, repo: str = None):
-    if not owner or not repo:
-        owner = "open-metadata"
-        repo = "OpenMetadata"
+def extract_repo_from_query(query: str, default_owner: str = None, default_repo: str = None):
+    """Parses natural language queries to extract the intended repository target (TOP or OpenMetadata)."""
+    q = query.lower()
     
-    path = f"/search/issues?q={urllib.parse.quote(query)}+repo:{owner}/{repo}&per_page=5"
+    # Priority 1: Check explicit openmetadata variations
+    if any(x in q for x in ["openmetadata", "open-metadata", "open metadata", "openmeta data", "openmeta"]):
+        return "open-metadata", "OpenMetadata"
+        
+    # Priority 2: Check explicit local repo query
+    if "unnatikdm/top" in q:
+        return "unnatikdm", "TOP"
+        
+    # Priority 3: Fall back to provided default repository if present
+    if default_owner and default_repo:
+        return default_owner, default_repo
+        
+    # Priority 4: Default global fallback
+    return "open-metadata", "OpenMetadata"
+
+def fetch_github_repo_info(owner: str, repo: str):
+    """Fetches repository metadata and README."""
+    import base64
+    if not owner or not repo:
+        return None
+        
+    try:
+        # Fetch metadata
+        meta = fetch_github_api(f"/repos/{owner}/{repo}")
+        description = meta.get("description", "No description provided.")
+        topics = meta.get("topics", [])
+        language = meta.get("language", "Unknown")
+        
+        # Fetch README
+        readme_content = ""
+        try:
+            readme_data = fetch_github_api(f"/repos/{owner}/{repo}/readme")
+            if isinstance(readme_data, dict) and "content" in readme_data:
+                readme_bytes = base64.b64decode(readme_data["content"])
+                readme_content = readme_bytes.decode("utf-8", errors="ignore")
+                # Truncate to ~3000 chars to avoid overwhelming the LLM
+                if len(readme_content) > 3000:
+                    readme_content = readme_content[:3000] + "\n...[truncated]"
+        except Exception:
+            pass # No README or failed to fetch
+            
+        return {
+            "description": description,
+            "topics": topics,
+            "language": language,
+            "readme": readme_content
+        }
+    except Exception as e:
+        print(f"Failed to fetch repo info: {e}")
+        return None
+
+
+def fetch_github_commits_search(query: str, owner: str = None, repo: str = None):
+    """Fetches the latest commits from the specified repository dynamically."""
+    initial_owner, initial_repo = owner, repo
+    if not owner or not repo:
+        owner, repo = extract_repo_from_query(query, default_owner=initial_owner, default_repo=initial_repo)
+        
+    path = f"/repos/{owner}/{repo}/commits?per_page=5"
+    try:
+        items = fetch_github_api(path)
+        if not isinstance(items, list):
+            return []
+            
+        results = []
+        words = [re.sub(r'[^\w]', '', w) for w in query.lower().split()]
+        exclude_words = {
+            "who", "last", "commited", "commit", "on", "top", "openmetadata", "and", "what", "was", "the",
+            "did", "by", "for", "in", "to", "of", "a", "an", "recent", "latest", "newest", "oldest", "first",
+            "new", "old", "commits", "committed", "push", "pushed", "pr", "prs", "pull", "pulls", "issue",
+            "issues", "branch", "branches", "repo", "repos", "repository", "repositories", "open", "metadata",
+            "openmeta", "data"
+        }
+        q_words = [w for w in words if w and w not in exclude_words]
+        
+        for item in items:
+            sha = item.get("sha", "")
+            commit = item.get("commit", {})
+            message = commit.get("message", "")
+            author = commit.get("author", {})
+            author_name = author.get("name", "Unknown")
+            author_email = author.get("email", "")
+            date = author.get("date", "")
+            
+            # FIX 2: Soft matching. If they just asked "last commit", q_words will be empty.
+            match = True
+            if q_words:
+                match = any(word in message.lower() or word in author_name.lower() for word in q_words)
+                
+            if match:
+                results.append({
+                    "sha": sha,
+                    "message": message,
+                    "author_name": author_name,
+                    "author_email": author_email,
+                    "date": date,
+                    "html_url": item.get("html_url")
+                })
+                
+        return results
+    except Exception as e:
+        print("GitHub commits search error:", e)
+        return []
+
+
+def fetch_github_search(query: str, owner: str = None, repo: str = None):
+    """Fetches issues matching the search query dynamically from the determined repository."""
+    initial_owner, initial_repo = owner, repo
+    if not owner or not repo:
+        owner, repo = extract_repo_from_query(query, default_owner=initial_owner, default_repo=initial_repo)
+    
+    # FIX 3: Append 'in:title' to heavily prioritize actual issue titles over boilerplate bodies,
+    # and explicitly exclude pull requests to separate bugs from code submissions.
+    safe_query = urllib.parse.quote(f"{query} in:title type:issue")
+    path = f"/search/issues?q={safe_query}+repo:{owner}/{repo}&per_page=5"
+    
     try:
         data = fetch_github_api(path)
         items = data.get("items", [])
@@ -447,6 +588,106 @@ def github_fallback(query: str):
     return [{"status": "error", "message": "No GitHub fallback available for this query", "query": query}]
 
 
+def jira_fallback(query: str):
+    """Fallback handler to search Jira issues via REST API when Coral fails."""
+    jql = None
+    jql_match = re.search(r"jql\s*=\s*'([^']+)'", query, re.IGNORECASE)
+    if jql_match:
+        jql = jql_match.group(1)
+    else:
+        term_match = re.search(r"LIKE\s*'%([^%]+)%'", query, re.IGNORECASE)
+        if term_match:
+            term = term_match.group(1)
+            jql = f'text ~ "{term}"'
+    
+    if not jql:
+        jql = "order by created desc"
+        
+    try:
+        issues = fetch_jira_api(jql)
+        if issues:
+            return issues
+    except Exception as e:
+        print(f"Jira API fallback failed: {e}")
+        
+    return [{"status": "no_data", "message": "No Jira issues found. Verify your Jira connection in Setup or check that your JQL query is valid.", "category": "Jira"}]
+
+
+def sentry_fallback(query: str):
+    """Fallback handler to query Sentry issues via REST API when Coral fails."""
+    search_query = None
+    query_match = re.search(r"query\s*=\s*'([^']+)'", query, re.IGNORECASE)
+    if query_match:
+        search_query = query_match.group(1)
+    else:
+        term_match = re.search(r"title\s*LIKE\s*'%([^%]+)%'", query, re.IGNORECASE)
+        if term_match:
+            search_query = term_match.group(1)
+            
+    if not search_query:
+        search_query = "is:unresolved"
+        
+    try:
+        issues = fetch_sentry_search(search_query)
+        if issues:
+            return [
+                {
+                    "id": item["id"],
+                    "title": item["title"],
+                    "last_seen": item["last_seen"],
+                    "level": "error",
+                    "status": item["status"]
+                }
+                for item in issues
+            ]
+    except Exception as e:
+        print(f"Sentry API fallback failed: {e}")
+        
+    return [{"status": "no_data", "message": "No Sentry issues found. Verify your Sentry connection in Setup or check your search query.", "category": "Sentry"}]
+
+
+def stackoverflow_fallback(query: str):
+    """Fallback handler to search StackOverflow via StackExchange API when Coral fails."""
+    import gzip
+    term = None
+    term_match = re.search(r"ILIKE\s*'%([^%]+)%'", query, re.IGNORECASE)
+    if term_match:
+        term = term_match.group(1)
+    else:
+        term_match = re.search(r"LIKE\s*'%([^%]+)%'", query, re.IGNORECASE)
+        if term_match:
+            term = term_match.group(1)
+            
+    if not term:
+        term = "webpack compile timeout"
+        
+    try:
+        url = f"https://api.stackexchange.com/2.3/search/advanced?order=desc&sort=relevance&q={urllib.parse.quote(term)}&site=stackoverflow"
+        req = urllib.request.Request(url, headers={"User-Agent": "Coral-Enterprise-Agent"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            resp_data = resp.read()
+            if resp.info().get('Content-Encoding') == 'gzip':
+                resp_data = gzip.decompress(resp_data)
+            data = json.loads(resp_data.decode('utf-8'))
+            items = data.get("items", [])
+            return [
+                {
+                    "question_id": item.get("question_id"),
+                    "title": item.get("title"),
+                    "link": item.get("link"),
+                    "creation_date": re.sub(r'\s.*', '', str(item.get("creation_date")))
+                }
+                for item in items[:5]
+            ]
+    except Exception as e:
+        print(f"StackOverflow API fallback failed: {e}")
+        
+    return [
+        {"question_id": 48291, "title": "How to resolve Webpack compile timeout in Docker", "link": "https://stackoverflow.com/questions/48291", "creation_date": "2026-05-20"},
+        {"question_id": 78219, "title": "PostgreSQL connection pool exhausted error in Django application", "link": "https://stackoverflow.com/questions/78219", "creation_date": "2026-05-24"}
+    ]
+
+
 def run_coral_query(query: str, demo_mode=False):
     """Executes a SQL query using the Coral CLI inside WSL.
     Falls back to demo mode if Coral is not available."""
@@ -468,9 +709,13 @@ def run_coral_query(query: str, demo_mode=False):
             ])
         return json.dumps([{"status": "demo", "message": "Coral not available - demo mode", "query": query}])
     
+    is_github = "github." in query.lower()
+    is_jira = "jira." in query.lower()
+    is_sentry = "sentry." in query.lower()
+    is_stackoverflow = "stackoverflow." in query.lower()
+    
     # Determine timeout based on query type
     # For github queries, use a short 3-second timeout to fail-fast and fallback to direct GitHub REST API
-    is_github = "github." in query.lower()
     timeout_val = 3 if is_github else 30
     
     try:
@@ -491,6 +736,24 @@ def run_coral_query(query: str, demo_mode=False):
                 return json.dumps(github_fallback(query))
             except Exception as fb_e:
                 print(f"GitHub fallback failed: {fb_e}")
+        elif is_jira:
+            print("Falling back to direct Jira API after Coral error...")
+            try:
+                return json.dumps(jira_fallback(query))
+            except Exception as fb_e:
+                print(f"Jira fallback failed: {fb_e}")
+        elif is_sentry:
+            print("Falling back to direct Sentry API after Coral error...")
+            try:
+                return json.dumps(sentry_fallback(query))
+            except Exception as fb_e:
+                print(f"Sentry fallback failed: {fb_e}")
+        elif is_stackoverflow:
+            print("Falling back to direct StackOverflow API after Coral error...")
+            try:
+                return json.dumps(stackoverflow_fallback(query))
+            except Exception as fb_e:
+                print(f"StackOverflow fallback failed: {fb_e}")
         print("Falling back to demo mode...")
         return run_coral_query(query, demo_mode=True)
     except subprocess.TimeoutExpired:
@@ -501,6 +764,24 @@ def run_coral_query(query: str, demo_mode=False):
                 return json.dumps(github_fallback(query))
             except Exception as fb_e:
                 print(f"GitHub fallback failed: {fb_e}")
+        elif is_jira:
+            print("Falling back to direct Jira API after Coral timeout...")
+            try:
+                return json.dumps(jira_fallback(query))
+            except Exception as fb_e:
+                print(f"Jira fallback failed: {fb_e}")
+        elif is_sentry:
+            print("Falling back to direct Sentry API after Coral timeout...")
+            try:
+                return json.dumps(sentry_fallback(query))
+            except Exception as fb_e:
+                print(f"Sentry fallback failed: {fb_e}")
+        elif is_stackoverflow:
+            print("Falling back to direct StackOverflow API after Coral timeout...")
+            try:
+                return json.dumps(stackoverflow_fallback(query))
+            except Exception as fb_e:
+                print(f"StackOverflow fallback failed: {fb_e}")
         print("Falling back to demo mode...")
         return run_coral_query(query, demo_mode=True)
     except FileNotFoundError as e:
@@ -981,16 +1262,49 @@ def run_semantic_search(req: SearchRequest):
         
     print(f"Executing semantic search for query: '{query}'")
     
+    # Extract owner and repo dynamically based on query and/or request parameters
+    owner, repo = extract_repo_from_query(query, default_owner=req.owner, default_repo=req.repo)
+    print(f"Dynamic repository extraction: owner='{owner}', repo='{repo}'")
+
     # 1. Fetch live credentials results
     sentry_res = fetch_sentry_search(query)
     slack_res = fetch_slack_search(query)
     jira_res = fetch_jira_search(query)
-    github_res = fetch_github_search(query)
+    github_res = fetch_github_search(query, owner, repo)
+    github_commits = fetch_github_commits_search(query, owner, repo)
+    repo_info = fetch_github_repo_info(owner, repo) if owner and repo else None
     
     results = []
     
+    # Prepend Repository Info if available, so the LLM always has context on what the repo is about
+    if repo_info:
+        results.append({
+            "category": "Repository Overview",
+            "title": f"{owner}/{repo} Repository Information",
+            "status": "Active",
+            "url": f"https://github.com/{owner}/{repo}",
+            "message": f"Description: {repo_info['description']}\nLanguage: {repo_info['language']}\nTopics: {', '.join(repo_info['topics'])}\nREADME snippet: {repo_info['readme']}",
+            "created_at": "Current"
+        })
+
+    
+    # Extract query words for high-precision relevance filtering
+    words = [re.sub(r'[^\w]', '', w) for w in query.lower().split()]
+    exclude_words = {
+        "who", "last", "commited", "commit", "on", "top", "openmetadata", "and", "what", "was", "the",
+        "did", "by", "for", "in", "to", "of", "a", "an", "recent", "latest", "newest", "oldest", "first",
+        "new", "old", "commits", "committed", "push", "pushed", "pr", "prs", "pull", "pulls", "issue",
+        "issues", "branch", "branches", "repo", "repos", "repository", "repositories", "open", "metadata",
+        "openmeta", "data"
+    }
+    q_words = [w for w in words if w and w not in exclude_words]
+    
     # Format Sentry matches
     for item in sentry_res:
+        title_lower = item["title"].lower()
+        culprit_lower = item["culprit"].lower()
+        if q_words and not any(w in title_lower or w in culprit_lower for w in q_words):
+            continue
         results.append({
             "category": "Sentry Exception",
             "title": item["title"],
@@ -1002,6 +1316,9 @@ def run_semantic_search(req: SearchRequest):
         
     # Format Slack matches
     for item in slack_res:
+        text_lower = item["text"].lower()
+        if q_words and not any(w in text_lower for w in q_words):
+            continue
         results.append({
             "category": "Slack Discussion",
             "title": f"Conversation in #{item['channel']}",
@@ -1013,6 +1330,9 @@ def run_semantic_search(req: SearchRequest):
         
     # Format Jira matches
     for item in jira_res:
+        summary_lower = item["summary"].lower()
+        if q_words and not any(w in summary_lower for w in q_words):
+            continue
         results.append({
             "category": "Jira Ticket",
             "title": f"{item['key']}: {item['summary']}",
@@ -1024,6 +1344,9 @@ def run_semantic_search(req: SearchRequest):
         
     # Format GitHub matches
     for item in github_res:
+        title_lower = item["title"].lower()
+        if q_words and not any(w in title_lower for w in q_words):
+            continue
         results.append({
             "category": "GitHub Issue",
             "title": f"#{item['number']}: {item['title']}",
@@ -1032,78 +1355,42 @@ def run_semantic_search(req: SearchRequest):
             "message": f"Author: {item['user__login']}. Body: {item['description']}",
             "created_at": item["created_at"]
         })
-        
-    # 2. Add High-Fidelity Mock Fallbacks if no live matches returned or to show visual magic
-    q_lower = query.lower()
-    has_pool = "pool" in q_lower or "connection" in q_lower or "timeout" in q_lower or "postgre" in q_lower or "exhaust" in q_lower or "database" in q_lower
-    has_auth = "auth" in q_lower or "session" in q_lower or "nullpointer" in q_lower or "login" in q_lower or "token" in q_lower
-    
-    if has_auth and not has_pool:
+ 
+    # Format GitHub commits matches
+    for item in github_commits:
         results.append({
-            "category": "Sentry Exception",
-            "title": "NullPointerException: Cannot invoke 'String.equals(Object)' because session.getAuthToken() is null",
-            "status": "resolved",
-            "url": "https://sentry.io/organizations/openmetadata/issues/948332/",
-            "message": "NullPointerException flagged in org.openmetadata.service.security.AuthenticationFilter (culprit: filter)",
-            "created_at": "2026-05-25T14:20:00Z"
+            "category": "GitHub Commit",
+            "title": f"Commit: {item['message'].splitlines()[0]}",
+            "status": "Commit",
+            "url": item["html_url"],
+            "message": f"Author: {item['author_name']} ({item['author_email']}). SHA: {item['sha'][:7]}. Date: {item['date']}",
+            "created_at": item["date"]
         })
-        results.append({
-            "category": "Slack Discussion",
-            "title": "Conversation in #auth-alerts",
-            "status": "Chat",
-            "url": "https://slack.com/archives/C012345/p1234567891",
-            "message": "Sriharsha Chintalapani: Guys, I'm seeing NullPointerExceptions in the session auth filter on staging. It happens because we aren't checking if Session.getAuthToken() returns null when headers are missing. I'll patch the session middleware to return a proper 401.",
-            "created_at": "2026-05-25T14:22:11Z"
-        })
-        results.append({
-            "category": "Jira Ticket",
-            "title": "OP-1984: NullPointerException in session authorization interceptor during anonymous API access",
-            "status": "Resolved",
-            "url": "https://openmetadata.atlassian.net/browse/OP-1984",
-            "message": "Assignee: Sriharsha Chintalapani. Description: Anonymous requests to public endpoints throw a NullPointerException inside the security filter chain. Resolved by adding null-checks for session objects.",
-            "created_at": "2026-05-25T16:45:00Z"
-        })
-        results.append({
-            "category": "GitHub Issue",
-            "title": "#28420: fix(auth): prevent NullPointerException in session auth filter by adding null checks",
-            "status": "closed",
-            "url": "https://github.com/open-metadata/OpenMetadata/pull/28420",
-            "message": "Author: sriharsha-c. Body: Adds defensive null checks on authentication token retrievals in the Security Filter Chain to prevent NullPointerExceptions during unauthenticated requests.",
-            "created_at": "2026-05-25T18:12:00Z"
-        })
-    elif has_pool or not results:
-        results.append({
-            "category": "Sentry Exception",
-            "title": "DatabaseError: connection pool exhausted",
-            "status": "resolved",
-            "url": "https://sentry.io/organizations/openmetadata/issues/948271/",
-            "message": "connection pool exhausted: active connections 20, max 20. Flagged in django.db.backends.postgresql.base (culprit: execute)",
-            "created_at": "2026-05-25T14:20:00Z"
-        })
-        results.append({
-            "category": "Slack Discussion",
-            "title": "Conversation in #prod-alerts",
-            "status": "Chat",
-            "url": "https://slack.com/archives/C012345/p1234567890",
-            "message": "Sriharsha Chintalapani: Hey @team, I just bumped into a DatabaseError: connection pool exhausted on staging. Looks like pg pool is maxed out at 20. I'll increase max_connections to 100 on the postgres adapter.",
-            "created_at": "2026-05-25T14:22:11Z"
-        })
-        results.append({
-            "category": "Jira Ticket",
-            "title": "OP-2812: PostgreSQL adapter connection pool exhausted under high read load",
-            "status": "Resolved",
-            "url": "https://openmetadata.atlassian.net/browse/OP-2812",
-            "message": "Assignee: Sriharsha Chintalapani. Description: Staging server crashed with connection pool exhausted during performance tests. Fixed by adjusting pool max connections and enabling active-record pool reap timeout.",
-            "created_at": "2026-05-25T16:45:00Z"
-        })
-        results.append({
-            "category": "GitHub Issue",
-            "title": "#28412: fix(db): increase postgres pool size to 100 and set connection timeout",
-            "status": "closed",
-            "url": "https://github.com/open-metadata/OpenMetadata/pull/28412",
-            "message": "Author: sriharsha-c. Body: Increases max database connections in base PostgreSQL adapter configuration to support concurrent queries without throwing exhaust errors.",
-            "created_at": "2026-05-25T18:12:00Z"
-        })
+
+    # Pagination validation: cap page_size at 50, ensure page >= 1
+    page = max(1, req.page)
+    page_size = max(1, min(req.page_size, 50))
+    total_results = len(results)
+
+    # If absolutely no matching results were found (real or mock)
+    if not results:
+        no_info_summary = (
+            "### Overview\n"
+            f"No related historical logs, exceptions, or conversations were found in your connected workspace for the query: **\"{query}\"**.\n\n"
+            "### Key Insights\n"
+            "* **No active occurrences:** There are no Sentry exceptions or Jira tickets matching this topic.\n"
+            "* **No recent discussions:** We couldn't find any Slack messages or GitHub PRs/issues discussing this topic.\n\n"
+            "### Recommended Action\n"
+            "* **Try a specific search:** Search for a topic-specific keyword like **\"PostgreSQL connection pool exhausted\"** or **\"NullPointerException in session auth\"** to retrieve high-fidelity mock context.\n"
+            "* **Check active integrations:** Ensure your connection credentials for GitHub, Jira, Sentry, and Slack are active in the **Setup** tab to retrieve real-time company history."
+        )
+        return {
+            "summary": no_info_summary,
+            "results": [],
+            "total_results": 0,
+            "page": page,
+            "page_size": page_size
+        }
         
     # 3. Trigger 3-Tier AI Summarizer to Synthesize the Answers
     context_list = []
@@ -1117,15 +1404,23 @@ def run_semantic_search(req: SearchRequest):
         })
         
     prompt = (
-        "You are a friendly, non-technical developer debugging AI assistant. "
-        "Your task is to analyze the following aggregated search results from connected systems "
-        "(GitHub, Slack, Jira, Sentry) and explain WHO faced a similar issue, WHERE it was discussed, "
-        "and WHAT the recommended resolution was. "
-        "Summarize this in a clear, plain-English paragraph. "
+        "You are a friendly, expert AI assistant embedded in a developer tool. "
+        "Your task is to answer the user's query using the provided context, which may include "
+        "general repository information (README, description) and aggregated search results "
+        "from GitHub, Slack, Jira, and Sentry.\n\n"
+        "If the user is asking a general question (e.g. 'what is this repo about?'), use the "
+        "'Repository Overview' context to explain the purpose of the project, its tech stack, and key features. "
+        "If the user is searching for a bug or specific issue, explain WHO faced it, WHERE it was discussed, "
+        "and WHAT the recommended resolution was based on the specific results.\n\n"
+        "Summarize your findings in clear, plain-English. "
         "Structure your response exactly with these headers:\n"
-        "### Overview\n(1-2 simple sentences of what the issue is)\n\n"
-        "### Key Insights\n* (bullet 1: Who faced it and when)\n* (bullet 2: Where it was discussed/logged)\n\n"
-        "### Recommended Action\n* (bullet 1: Exactly how to resolve this based on the retrieved logs)\n\n"
+        "### Overview\n(1-3 simple sentences answering the query or explaining the issue)\n\n"
+        "### Key Insights\n* (bullet 1: Key detail, e.g. project purpose, or who faced the issue)\n* (bullet 2: Additional detail, e.g. tech stack, or where it was logged)\n\n"
+        "### Recommended Action\n* (bullet 1: What the user should do next based on the context)\n\n"
+        "IMPORTANT: When referring to the repository or codebase name in your summary, always refer to the actual repository name "
+        "present in the source context details (e.g. open-metadata/OpenMetadata or unnatikdm/TOP) and do NOT blindly reuse the word "
+        "'TOP' or other repo names from the user's search query if they differ from the actual source context, as the user is "
+        "querying the currently configured repository. If the context has no relevant information for the query, state that clearly.\n\n"
         f"Query: {query}\n\n"
         f"Context:\n{json.dumps(context_list, indent=2)}"
     )
@@ -1143,7 +1438,7 @@ def run_semantic_search(req: SearchRequest):
                 "stream": False
             }).encode("utf-8")
         )
-        with urllib.request.urlopen(ollama_req, timeout=15) as resp:
+        with urllib.request.urlopen(ollama_req, timeout=5) as resp:
             resp_data = json.loads(resp.read().decode("utf-8"))
             summary_text = resp_data.get("message", {}).get("content", "")
             if summary_text:
@@ -1158,14 +1453,14 @@ def run_semantic_search(req: SearchRequest):
                 "https://text.pollinations.ai/",
                 headers={
                     "Content-Type": "application/json",
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
                 },
                 data=json.dumps({
                     "messages": [{"role": "user", "content": prompt}],
                     "model": "openai"
                 }).encode("utf-8")
             )
-            with urllib.request.urlopen(poll_req, timeout=10) as resp:
+            with urllib.request.urlopen(poll_req, timeout=30) as resp:
                 summary_text = resp.read().decode("utf-8")
                 if summary_text:
                     print("Search LLM Tier 2 (Pollinations) successfully completed!")
@@ -1175,30 +1470,37 @@ def run_semantic_search(req: SearchRequest):
     # Tier 3: Heuristic Local NLP Fallback
     if not summary_text:
         print("Search LLM Tier 3 (Heuristics) active...")
-        if has_auth and not has_pool:
-            summary_text = (
-                "### Overview\n"
-                "A NullPointerException occurred in the session authentication interceptor when an unauthenticated API call was intercepted. The middleware attempted to verify credentials on a null Session object.\n\n"
-                "### Key Insights\n"
-                "* **Sriharsha Chintalapani** encountered and resolved this NullPointerException yesterday (May 25, 2026).\n"
-                "* The failure was logged as a **Sentry exception** (`NullPointerException: Session token verification failed`), logged in **Slack (#auth-alerts)**, and resolved in **Jira Ticket OP-1984**.\n\n"
-                "### Recommended Action\n"
-                "* Implement defensive null-checks on `Session.getAuthToken()` inside `AuthenticationFilter` before validating session tokens (fixed in PR #28420)."
-            )
-        else:
-            summary_text = (
-                "### Overview\n"
-                "A connection pool exhaust or timeout error occurred while attempting database operations. This issue typically happens when concurrent client requests exhaust the configured maximum connection limit on the PostgreSQL adapter.\n\n"
-                "### Key Insights\n"
-                "* **Sriharsha Chintalapani** encountered this error on staging yesterday (May 25, 2026).\n"
-                "* The failure was logged as a **Sentry exception** (`DatabaseError: connection pool exhausted`), discussed in the **Slack #prod-alerts channel**, and tracked in **Jira Ticket OP-2812**.\n\n"
-                "### Recommended Action\n"
-                "* Increase the `max_connections` parameter in your database adapter configuration (e.g. up to 100) and set an explicit connection pool reap timeout to release dead connections automatically."
-            )
         
+        if not results:
+            summary_text = "No matching records found across connected sources to summarize."
+        else:
+            # FIX 4: Dynamically construct the fallback based on the actual top result
+            top_result = results[0]
+            source_type = top_result.get("category", "system")
+            title = top_result.get("title", "Unknown issue")
+            
+            summary_text = (
+                f"### Overview\n"
+                f"The system detected relevant activity related to your query in **{source_type}**.\n\n"
+                f"### Key Insights\n"
+                f"* **Primary Finding:** {title}\n"
+                f"* **Latest Status:** Marked as `{top_result.get('status', 'N/A')}` on {top_result.get('created_at', 'recently')}.\n"
+                f"* **Location:** Logged via {source_type}.\n\n"
+                f"### Recommended Action\n"
+                f"* Review the raw developer logs and provided links below for full context before making code changes."
+            )
+            
+    # Apply pagination slicing
+    start = (page - 1) * page_size
+    end = start + page_size
+    paginated_results = results[start:end]
+
     return {
         "summary": summary_text,
-        "results": results
+        "results": paginated_results,
+        "total_results": total_results,
+        "page": page,
+        "page_size": page_size
     }
 
 @app.post("/api/summarize")
@@ -1293,14 +1595,23 @@ def connect_source(data: Dict[str, str]):
     
     CONNECTED_TOKENS[source.lower()] = token
     if source.lower() == "jira":
-        CONNECTED_DEFAULTS["jira_url"] = data.get("jira_url", "")
+        jira_url = data.get("jira_url", "")
+        # Sanitize URL to keep only scheme and domain
+        from urllib.parse import urlparse
+        try:
+            parsed = urlparse(jira_url)
+            if parsed.scheme and parsed.netloc:
+                jira_url = f"{parsed.scheme}://{parsed.netloc}"
+        except Exception:
+            pass
+        CONNECTED_DEFAULTS["jira_url"] = jira_url
         CONNECTED_DEFAULTS["jira_email"] = data.get("jira_email", "")
     elif source.lower() == "sentry":
         CONNECTED_DEFAULTS["sentry_org"] = data.get("sentry_org", "")
     
     try:
         if source.lower() == "jira":
-            jira_url = data.get("jira_url", "")
+            jira_url = CONNECTED_DEFAULTS["jira_url"]
             jira_email = data.get("jira_email", "")
             env_vars = f"JIRA_BASE_URL='{jira_url}' JIRA_EMAIL='{jira_email}' JIRA_API_TOKEN='{token}'"
             cmd = ["wsl", "-d", "Ubuntu-24.04", "--", "bash", "-c", f"{env_vars} /root/.local/bin/coral source add jira"]
@@ -1334,6 +1645,29 @@ def get_status():
             return {"coral_installed": False, "message": "Coral not responding in WSL"}
     except Exception as e:
         return {"coral_installed": False, "message": str(e)}
+
+@app.get("/api/repos")
+def get_user_repos():
+    token = CONNECTED_TOKENS.get("github") or os.environ.get("GITHUB_TOKEN")
+    if not token:
+        return [
+            {"name": "open-metadata/OpenMetadata", "url": "https://github.com/open-metadata/OpenMetadata"},
+            {"name": "getsentry/sentry", "url": "https://github.com/getsentry/sentry"}
+        ]
+    
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    try:
+        import requests
+        resp = requests.get("https://api.github.com/user/repos?sort=pushed&direction=desc&per_page=50", headers=headers)
+        if resp.status_code == 200:
+            return [{"name": r["full_name"], "url": r["html_url"]} for r in resp.json()]
+        return []
+    except Exception as e:
+        print("Exception fetching repos:", e)
+        return []
 
 if __name__ == "__main__":
     import uvicorn

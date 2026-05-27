@@ -10,11 +10,17 @@
   --text-main: #1e293b;
   --text-dim: #64748b;
   --accent: #3b82f6;
+  --accent-secondary: #6366f1;
   --border: #e2e8f0;
   --success: #10b981;
   --danger: #ef4444;
   --shadow: 0 1px 3px rgba(0,0,0,0.1);
   --glass: rgba(255, 255, 255, 0.8);
+  --glass-border: rgba(255, 255, 255, 0.25);
+  --glass-blur: 16px;
+  --gradient-accent: linear-gradient(135deg, #3b82f6 0%, #6366f1 50%, #8b5cf6 100%);
+  --gradient-card: linear-gradient(135deg, rgba(59,130,246,0.04) 0%, rgba(99,102,241,0.04) 100%);
+  --glow-accent: 0 0 20px rgba(59,130,246,0.15);
 }
 
 [data-theme='dark'] {
@@ -26,11 +32,17 @@
   --text-main: #f1f5f9;
   --text-dim: #94a3b8;
   --accent: #60a5fa;
+  --accent-secondary: #818cf8;
   --border: #334155;
   --success: #34d399;
   --danger: #f87171;
   --shadow: 0 4px 12px rgba(0,0,0,0.3);
-  --glass: rgba(30, 41, 59, 0.8);
+  --glass: rgba(30, 41, 59, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-blur: 16px;
+  --gradient-accent: linear-gradient(135deg, #60a5fa 0%, #818cf8 50%, #a78bfa 100%);
+  --gradient-card: linear-gradient(135deg, rgba(96,165,250,0.06) 0%, rgba(129,140,248,0.06) 100%);
+  --glow-accent: 0 0 24px rgba(96,165,250,0.2);
 }
 
 * {
@@ -425,4 +437,250 @@ td {
   animation: pulse 1.5s ease-in-out infinite;
 }
 
+/* ===== SearchBar Glass Component ===== */
+.searchbar-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
 
+.searchbar-glass {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: var(--glass);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 6px 6px 6px 16px;
+  box-shadow: var(--shadow);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.2s ease;
+}
+
+.searchbar-glass:hover {
+  border-color: var(--accent);
+  box-shadow: var(--glow-accent);
+}
+
+.searchbar-focused {
+  border-color: var(--accent) !important;
+  box-shadow: var(--glow-accent), 0 4px 20px rgba(0,0,0,0.08) !important;
+  transform: translateY(-1px);
+}
+
+.searchbar-icon-left {
+  display: flex;
+  align-items: center;
+  color: var(--text-dim);
+  flex-shrink: 0;
+  transition: color 0.2s;
+}
+
+.searchbar-focused .searchbar-icon-left {
+  color: var(--accent);
+}
+
+@keyframes searchbar-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.searchbar-spinner {
+  animation: searchbar-spin 0.8s linear infinite;
+}
+
+.searchbar-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  color: var(--text-main);
+  padding: 12px 12px;
+  min-width: 0;
+}
+
+.searchbar-input::placeholder {
+  color: var(--text-dim);
+  opacity: 0.7;
+}
+
+.searchbar-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: var(--bg-input);
+  color: var(--text-dim);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s, color 0.2s, transform 0.15s;
+}
+
+.searchbar-clear:hover {
+  background: var(--danger);
+  color: white;
+  transform: scale(1.1);
+}
+
+.searchbar-submit {
+  margin-left: 8px;
+  padding: 10px 24px;
+  border-radius: 12px;
+  border: none;
+  background: var(--gradient-accent);
+  color: white;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+  white-space: nowrap;
+}
+
+.searchbar-submit:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59,130,246,0.3);
+}
+
+.searchbar-submit:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.searchbar-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Suggestion Chips */
+.searchbar-suggestions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 0 4px;
+}
+
+.searchbar-suggestions-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-dim);
+}
+
+.searchbar-chip {
+  padding: 5px 14px;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  background: var(--glass);
+  backdrop-filter: blur(8px);
+  color: var(--text-main);
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.searchbar-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(59, 130, 246, 0.06);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(59,130,246,0.12);
+}
+
+/* ===== Pagination Controls ===== */
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 20px;
+  padding: 12px 0;
+}
+
+.pagination-btn {
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--glass);
+  backdrop-filter: blur(8px);
+  color: var(--text-main);
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: var(--glow-accent);
+  transform: translateY(-1px);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pagination-btn.active {
+  background: var(--gradient-accent);
+  color: white;
+  border-color: transparent;
+}
+
+.pagination-info {
+  font-size: 13px;
+  color: var(--text-dim);
+  font-weight: 500;
+  padding: 0 12px;
+}
+
+/* ===== Enhanced Card Hover (glass accent) ===== */
+.result-card {
+  background: var(--gradient-card);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[data-theme='dark'] .result-card:hover {
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3), var(--glow-accent);
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 768px) {
+  .searchbar-glass {
+    flex-wrap: wrap;
+    border-radius: 12px;
+    padding: 8px;
+  }
+  .searchbar-input {
+    font-size: 14px;
+    padding: 10px 8px;
+  }
+  .searchbar-submit {
+    width: 100%;
+    margin-left: 0;
+    margin-top: 4px;
+    justify-content: center;
+    text-align: center;
+  }
+  .searchbar-suggestions {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 4px;
+  }
+  .pagination-controls {
+    flex-wrap: wrap;
+  }
+}
