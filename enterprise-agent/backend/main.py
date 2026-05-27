@@ -1296,6 +1296,18 @@ def run_semantic_search(req: SearchRequest):
     
     results = []
     
+    # Check if there are explicit auth errors
+    auth_errors = []
+    for res_list in [slack_res, github_res, sentry_res, jira_res]:
+        if res_list and isinstance(res_list[0], dict) and res_list[0].get("error"):
+            auth_errors.append(f"**{res_list[0]['source']}**: {res_list[0]['message']}")
+            
+    # Remove error dicts from valid results
+    slack_res = [r for r in slack_res if not r.get("error")]
+    github_res = [r for r in github_res if not r.get("error")]
+    sentry_res = [r for r in sentry_res if not r.get("error")]
+    jira_res = [r for r in jira_res if not r.get("error")]
+
     # Repository Info will be prepended later if we actually find relevant logs/tickets
 
     
@@ -1394,18 +1406,6 @@ def run_semantic_search(req: SearchRequest):
     page_size = max(1, min(req.page_size, 50))
     total_results = len(results)
 
-    # Check if there are explicit auth errors
-    auth_errors = []
-    for res_list in [slack_res, github_res, sentry_res, jira_res]:
-        if res_list and isinstance(res_list[0], dict) and res_list[0].get("error"):
-            auth_errors.append(f"**{res_list[0]['source']}**: {res_list[0]['message']}")
-            
-    # Remove error dicts from valid results
-    slack_res = [r for r in slack_res if not r.get("error")]
-    github_res = [r for r in github_res if not r.get("error")]
-    sentry_res = [r for r in sentry_res if not r.get("error")]
-    jira_res = [r for r in jira_res if not r.get("error")]
-    
     # If absolutely no matching results were found (real or mock)
     if not results and not auth_errors:
         no_info_summary = (
