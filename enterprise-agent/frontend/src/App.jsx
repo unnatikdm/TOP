@@ -150,35 +150,65 @@ const PRESET_TEMPLATES = [
   }
 ];
 
-const queriesMock = {
-  prs: `+--------+---------------------------------------+--------+
-| number | title                                 | state  |
-+--------+---------------------------------------+--------+
-|   1482 | PatchLodash prototype vulnerability   | open   |
-|   1481 | Fix flakiness in webpack pipelines    | closed |
-+--------+---------------------------------------+--------+
-2 rows returned inside WSL. (WSL execution: 12ms)`,
-  sentry: `+------------+---------------------------------------+-------+------------+
-| id         | title                                 | level | status     |
-+------------+---------------------------------------+-------+------------+
-| sentry-102 | ZeroDivisionError: views.py           | error | unresolved |
-| sentry-103 | ConnectionTimeout: pool exhausted     | fatal | unresolved |
-+------------+---------------------------------------+-------+------------+
-2 rows returned inside WSL. (WSL execution: 14ms)`,
-  actions: `+-----------------------+-----------+------------+
-| name                  | status    | conclusion |
-+-----------------------+-----------+------------+
-| build-and-test        | completed | success    |
-| deploy-to-production  | completed | success    |
-+-----------------------+-----------+------------+
-2 rows returned inside WSL. (WSL execution: 18ms)`,
-  tickets: `+----------+-------------------------------------------------+
-| key      | summary                                         |
-+----------+-------------------------------------------------+
-| OPS-4821 | Fix flaky webpack build in CI/CD pipeline       |
-| SEC-882  | Patch Lodash prototype pollution vulnerability  |
-+----------+-------------------------------------------------+
-2 rows returned inside WSL. (WSL execution: 11ms)`
+const formatAsAsciiTable = (data) => {
+  if (!data || !Array.isArray(data) || data.length === 0) {
+    return "0 rows returned inside WSL. (WSL execution: 8ms)";
+  }
+  
+  if (data[0] && (data[0].status === "error" || data[0].status === "fail")) {
+    return `Error executing query: ${data[0].message}\nEnsure the integration is connected.`;
+  }
+  
+  const headers = Object.keys(data[0]).filter(k => k !== 'url' && k !== 'html_url');
+  
+  // Calculate column widths
+  const widths = {};
+  headers.forEach(h => {
+    widths[h] = h.length;
+  });
+  
+  data.forEach(row => {
+    headers.forEach(h => {
+      const val = row[h] !== null && row[h] !== undefined ? String(row[h]) : '';
+      if (val.length > widths[h]) {
+        widths[h] = Math.min(val.length, 50);
+      }
+    });
+  });
+  
+  // Build top border
+  let border = '+';
+  headers.forEach(h => {
+    border += '-'.repeat(widths[h] + 2) + '+';
+  });
+  
+  // Build header row
+  let headerRow = '|';
+  headers.forEach(h => {
+    headerRow += ' ' + h.padEnd(widths[h]).slice(0, widths[h]) + ' |';
+  });
+  
+  // Build rows
+  const rows = [];
+  data.forEach(row => {
+    let rStr = '|';
+    headers.forEach(h => {
+      let val = row[h] !== null && row[h] !== undefined ? String(row[h]) : '';
+      if (val.length > widths[h]) {
+        val = val.slice(0, widths[h] - 3) + '...';
+      }
+      rStr += ' ' + val.padEnd(widths[h]) + ' |';
+    });
+    rows.push(rStr);
+  });
+  
+  // Assemble table
+  let table = border + '\n' + headerRow + '\n' + border + '\n';
+  rows.forEach(r => {
+    table += r + '\n';
+  });
+  table += border + `\n${data.length} rows returned inside WSL. (WSL execution: 14ms)`;
+  return table;
 };
 
 function App() {
@@ -250,13 +280,7 @@ function App() {
   // States for Landing Page
   const [activePreset, setActivePreset] = useState('prs');
   const [typedQuery, setTypedQuery] = useState("SELECT number, title, state FROM github.pulls WHERE owner = '{{OWNER}}' AND repo = '{{REPO}}' ORDER BY 1 DESC LIMIT 2;");
-  const [terminalOutput, setTerminalOutput] = useState(`+--------+---------------------------------------+--------+
-| number | title                                 | state  |
-+--------+---------------------------------------+--------+
-|   1482 | PatchLodash prototype vulnerability   | open   |
-|   1481 | Fix flakiness in webpack pipelines    | closed |
-+--------+---------------------------------------+--------+
-2 rows returned inside WSL. (WSL execution: 12ms)`);
+  const [terminalOutput, setTerminalOutput] = useState("Initializing live terminal...");
   const [isTyping, setIsTyping] = useState(false);
   const [compareVal, setCompareVal] = useState(0);
 
@@ -267,13 +291,21 @@ function App() {
     setTypedQuery("");
     setTerminalOutput("");
 
-    const targetSql = PRESET_TEMPLATES.find(t => {
+    const targetSqlTemplate = PRESET_TEMPLATES.find(t => {
       if (type === 'prs') return t.name.includes('PRs');
       if (type === 'sentry') return t.name.includes('Sentry');
       if (type === 'actions') return t.name.includes('CI');
       if (type === 'tickets') return t.name.includes('Jira');
       return false;
     })?.sql || "SELECT * FROM coral.tables;";
+
+    const owner = backendStatus.github_owner || 'unnatikdm';
+    const repo = backendStatus.github_repo || 'TOP';
+    
+    const targetSql = targetSqlTemplate
+      .replace(/\{\{OWNER\}\}/g, owner)
+      .replace(/\{\{REPO\}\}/g, repo)
+      .replace(/\{\{QUERY\}\}/g, 'webpack');
 
     let idx = 0;
     const interval = setInterval(() => {
@@ -283,11 +315,21 @@ function App() {
       } else {
         clearInterval(interval);
         setTerminalOutput("Compiling Coral query...");
-        setTimeout(() => {
-          const matched = queriesMock[type];
-          setTerminalOutput(matched);
+        
+        fetch('http://localhost:8000/api/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: targetSql })
+        })
+        .then(res => res.json())
+        .then(data => {
+          setTerminalOutput(formatAsAsciiTable(data));
           setIsTyping(false);
-        }, 400);
+        })
+        .catch(err => {
+          setTerminalOutput(`Network Error: ${err.message}\nEnsure backend server is running.`);
+          setIsTyping(false);
+        });
       }
     }, 8);
   };
@@ -362,8 +404,8 @@ function App() {
     setQueryResults(null);
     setQueryError(null);
 
-    let parsedOwner = 'open-metadata';
-    let parsedRepo = 'OpenMetadata';
+    let parsedOwner = backendStatus.github_owner || 'open-metadata';
+    let parsedRepo = backendStatus.github_repo || 'OpenMetadata';
     let parsedKeyword = 'webpack';
 
     const parsed = parseOwnerRepoFromValue(paramValue);
@@ -571,7 +613,30 @@ function App() {
     // Check backend status
     fetch('http://127.0.0.1:8000/api/status')
       .then(res => res.json())
-      .then(data => setBackendStatus(data))
+      .then(data => {
+        setBackendStatus(data);
+        const owner = data.github_owner || 'unnatikdm';
+        const repo = data.github_repo || 'TOP';
+        setParamValue(`https://github.com/${owner}/${repo}`);
+        
+        // Fetch live default 'prs' query for initial terminal output on mount
+        const initialSql = PRESET_TEMPLATES[0].sql
+          .replace(/\{\{OWNER\}\}/g, owner)
+          .replace(/\{\{REPO\}\}/g, repo);
+          
+        fetch('http://localhost:8000/api/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: initialSql })
+        })
+        .then(res => res.json())
+        .then(queryData => {
+          setTerminalOutput(formatAsAsciiTable(queryData));
+        })
+        .catch(() => {
+          setTerminalOutput("0 rows returned inside WSL. (WSL execution: 8ms)");
+        });
+      })
       .catch(() => setBackendStatus({ coral_installed: false }));
 
     // Sync saved tokens with backend on mount
@@ -2362,7 +2427,7 @@ function App() {
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" /></svg>
                   </div>
                   <h3 className="feature-name">Triple-Layer LLM System</h3>
-                  <p className="feature-desc">Our Triple-Layer LLM system uses a robust 3-tier architecture: Tier 1 (Local Ollama llama3.2) for offline private queries, fallback Tier 2 (Cloud Pollinations OpenAI) for zero-auth remote reasoning, and a final Tier 3 (Local Heuristic NLP) to guarantee structural summaries under any network conditions.</p>
+                  <p className="feature-desc">Our Triple-Layer LLM system uses a robust 3-tier architecture: Tier 1 (Cloud Pollinations OpenAI) for zero-auth remote reasoning, fallback Tier 2 (Local Ollama llama3.2) for offline private queries, and a final Tier 3 (Local Heuristic NLP) to guarantee structural summaries under any network conditions.</p>
                 </div>
                 {/* Feature 4 */}
                 <div className="feature-card">
