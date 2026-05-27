@@ -3801,7 +3801,7 @@ function App() {
                       return (
                         <tr key={idx} style={{ borderBottom: '1px solid var(--border)' }}>
                           <td style={{ padding: '10px 16px', color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>
-                            {new Date(item.timestamp).toLocaleTimeString()}
+                            {new Date(item.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ', ' + new Date(item.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
                           </td>
                           <td style={{ padding: '10px 16px', fontFamily: 'monospace', color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '380px' }} title={item.query}>
                             {item.query}
