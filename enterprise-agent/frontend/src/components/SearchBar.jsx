@@ -19,7 +19,7 @@ export default function SearchBar({
   onChange,
   onSearch,
   loading = false,
-  placeholder = 'Search across GitHub, Slack, Jira, Sentry…',
+  placeholder = 'Search across GitHub, Discord, Jira, Sentry…',
   suggestions = [],
   onSuggestionClick,
   debounceMs = 200,
@@ -85,7 +85,7 @@ export default function SearchBar({
           >
             <option value="all">All Sources</option>
             <option value="github">GitHub</option>
-            <option value="slack">Slack</option>
+            <option value="discord">Discord</option>
             <option value="jira">Jira</option>
             <option value="sentry">Sentry</option>
           </select>

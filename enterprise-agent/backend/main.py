@@ -91,16 +91,16 @@ def load_connected_sources():
         except Exception:
             pass
 
-        # Read SLACK_TOKEN
+        # Read DISCORD_TOKEN
         try:
-            res_slack = subprocess.run(
-                ["wsl", "-d", "Ubuntu-24.04", "--", "cat", "/root/.config/coral/workspaces/default/sources/slack/secrets.env"],
+            res_discord = subprocess.run(
+                ["wsl", "-d", "Ubuntu-24.04", "--", "cat", "/root/.config/coral/workspaces/default/sources/discord/secrets.env"],
                 capture_output=True, text=True, timeout=15
             )
-            if res_slack.returncode == 0:
-                match = re.search(r'SLACK_TOKEN=["\']?([^"\'\n\s]+)', res_slack.stdout)
+            if res_discord.returncode == 0:
+                match = re.search(r'DISCORD_TOKEN=["\']?([^"\'\n\s]+)', res_discord.stdout)
                 if match:
-                    CONNECTED_TOKENS["slack"] = match.group(1)
+                    CONNECTED_TOKENS["discord"] = match.group(1)
         except Exception:
             pass
     except Exception as e:
@@ -241,47 +241,53 @@ def fetch_sentry_search(query: str):
         print("Sentry search helper error:", e)
         return []
 
-def fetch_slack_search(query: str):
-    token = CONNECTED_TOKENS.get("slack")
-    if not token:
+def fetch_discord_search(query: str):
+    token = CONNECTED_TOKENS.get("discord")
+    guild_id = CONNECTED_DEFAULTS.get("discord_guild_id")
+    if not token or not guild_id:
         return []
     
     try:
-        params = urllib.parse.urlencode({"query": query, "count": 5})
-        url = f"https://slack.com/api/search.messages?{params}"
+        params = urllib.parse.urlencode({"content": query})
+        url = f"https://discord.com/api/v9/guilds/{guild_id}/messages/search?{params}"
         headers = {
-            "Authorization": f"Bearer {token}",
+            "Authorization": token,
             "Accept": "application/json"
         }
         req = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode("utf-8"))
-            if data.get("ok"):
-                messages = data.get("messages", {}).get("matches", [])
-                return [
-                    {
-                        "username": msg.get("username") or msg.get("user") or "Slack User",
-                        "text": msg.get("text"),
-                        "permalink": msg.get("permalink"),
-                        "channel": msg.get("channel", {}).get("name") or "general",
-                        "timestamp": msg.get("ts")
-                    }
-                    for msg in messages
-                ]
-            elif not data.get("ok"):
-                err = data.get("error")
-                if err == "invalid_auth":
-                    return [{"error": True, "source": "Slack", "message": "Invalid authentication token. Please verify your token starts with xoxp- or xoxb-."}]
-                elif err == "missing_scope":
-                    needed = data.get("needed", "search:read")
-                    return [{"error": True, "source": "Slack", "message": f"Token is missing required scope: {needed}."}]
-                else:
-                    return [{"error": True, "source": "Slack", "message": f"Slack API error: {err}."}]
+            messages = data.get("messages", [])
+            results = []
+            for hit in messages:
+                if not hit: continue
+                # The hit is a list of messages. We just take the first one (the match).
+                msg = hit[0]
+                author = msg.get("author", {})
+                username = author.get("username", "Discord User")
+                text = msg.get("content", "")
+                msg_id = msg.get("id")
+                channel_id = msg.get("channel_id")
+                timestamp = msg.get("timestamp")
+                permalink = f"https://discord.com/channels/{guild_id}/{channel_id}/{msg_id}"
+                results.append({
+                    "username": username,
+                    "text": text,
+                    "permalink": permalink,
+                    "channel": f"channel-{channel_id}",
+                    "timestamp": timestamp
+                })
+            return results
     except Exception as e:
-        if hasattr(e, 'code') and e.code == 401:
-            return [{"error": True, "source": "Slack", "message": "Invalid authentication token. Please verify your token."}]
-    except Exception as e:
-        print("Slack search error:", e)
+        if hasattr(e, 'code'):
+            if e.code in [401, 403]:
+                return [{"error": True, "source": "Discord", "message": "Invalid authentication token or lacking permissions. Ensure you are using a valid token and have access to the provided Guild ID."}]
+            try:
+                err_data = json.loads(e.read().decode("utf-8"))
+                return [{"error": True, "source": "Discord", "message": f"Discord API error: {err_data.get('message', e.reason)}"}]
+            except:
+                return [{"error": True, "source": "Discord", "message": f"Discord API error: {e.reason}"}]
+        print("Discord search error:", e)
     return []
 
 def fetch_jira_search(query: str):
@@ -881,8 +887,8 @@ def execute_failure_hunter(params: Dict[str, Any]):
         except Exception:
             sentry_matches = []
 
-    # Slack messages that mention the commit (bypassed: slack.messages is not supported in this Coral version)
-    slack_matches = []
+    # Discord messages that mention the commit (bypassed: discord search by commit not supported currently)
+    discord_matches = []
 
     # Jira/Linear issues created near the workflow time
     ticket_matches = []
@@ -965,13 +971,13 @@ def execute_failure_hunter(params: Dict[str, Any]):
             "action": "Open Sentry to inspect the event and stack traces."
         })
 
-    if slack_matches:
+    if discord_matches:
         items.append({
-            "category": "Slack",
-            "title": f"{len(slack_matches)} Slack matches",
-            "message": "; ".join([m.get('text', '')[:120] for m in slack_matches]),
+            "category": "Discord",
+            "title": f"{len(discord_matches)} Discord matches",
+            "message": "; ".join([m.get('text', '')[:120] for m in discord_matches]),
             "status": "chat",
-            "action": "Check Slack for any ad-hoc fixes or rerun requests."
+            "action": "Check Discord for any ad-hoc fixes or rerun requests."
         })
 
     if ticket_matches:
@@ -1075,8 +1081,8 @@ def execute_pr_reaper(params: Dict[str, Any]):
             except Exception:
                 pass
 
-        # Correlate Slack mentions for this PR (bypassed: slack.messages is not supported in this Coral version)
-        slack_local = []
+        # Correlate Discord mentions for this PR (bypassed: discord is not supported in this Coral version)
+        discord_local = []
 
         # Correlate Jira/Linear tickets referencing this PR using direct Jira search REST API
         jira_local = []
@@ -1127,7 +1133,7 @@ def execute_pr_reaper(params: Dict[str, Any]):
                 "reason": reason,
                 "action": action,
                 "details": f"Reviews: {review_info['count']}, failed checks: {check_info['failed']}, ci_runs: {ci_reruns}, last_comment: {last_comment}",
-                "slack_mentions": len(slack_local),
+                "discord_mentions": len(discord_local),
                 "jira_links": [j.get('key') for j in jira_local]
             },
             "type": is_stale_type
@@ -1283,17 +1289,17 @@ def run_semantic_search(req: SearchRequest):
     print(f"Dynamic repository extraction: owner='{owner}', repo='{repo}'")
 
     # 1. Fetch live credentials results based on source filter
-    sentry_res = []
-    slack_res = []
-    jira_res = []
+    discord_res = []
     github_res = []
+    sentry_res = []
+    jira_res = []
     github_commits = []
     repo_info = None
 
+    if req.source in ["all", "discord"]:
+        discord_res = fetch_discord_search(query)
     if req.source in ["all", "sentry"]:
         sentry_res = fetch_sentry_search(query)
-    if req.source in ["all", "slack"]:
-        slack_res = fetch_slack_search(query)
     if req.source in ["all", "jira"]:
         jira_res = fetch_jira_search(query)
     if req.source in ["all", "github"]:
@@ -1305,12 +1311,12 @@ def run_semantic_search(req: SearchRequest):
     
     # Check if there are explicit auth errors
     auth_errors = []
-    for res_list in [slack_res, github_res, sentry_res, jira_res]:
+    for res_list in [discord_res, github_res, sentry_res, jira_res]:
         if res_list and isinstance(res_list[0], dict) and res_list[0].get("error"):
             auth_errors.append(f"**{res_list[0]['source']}**: {res_list[0]['message']}")
             
     # Remove error dicts from valid results
-    slack_res = [r for r in slack_res if not r.get("error")]
+    discord_res = [r for r in discord_res if not r.get("error")]
     github_res = [r for r in github_res if not r.get("error")]
     sentry_res = [r for r in sentry_res if not r.get("error")]
     jira_res = [r for r in jira_res if not r.get("error")]
@@ -1344,13 +1350,13 @@ def run_semantic_search(req: SearchRequest):
             "created_at": item["last_seen"]
         })
         
-    # Format Slack matches
-    for item in slack_res:
+    # Format Discord matches
+    for item in discord_res:
         text_lower = item["text"].lower()
         if q_words and not any(w in text_lower for w in q_words):
             continue
         results.append({
-            "category": "Slack Discussion",
+            "category": "Discord Discussion",
             "title": f"Conversation in #{item['channel']}",
             "status": "Chat",
             "url": item["permalink"],
@@ -1420,10 +1426,10 @@ def run_semantic_search(req: SearchRequest):
             f"No related historical logs, exceptions, or conversations were found in your connected workspace for the query: **\"{query}\"**.\n\n"
             "### Key Insights\n"
             "* **No active occurrences:** There are no Sentry exceptions or Jira tickets matching this topic.\n"
-            "* **No recent discussions:** We couldn't find any Slack messages or GitHub PRs/issues discussing this topic.\n\n"
+            "* **No recent discussions:** We couldn't find any Discord messages or GitHub PRs/issues discussing this topic.\n\n"
             "### Recommended Action\n"
             "* **Try a specific search:** Search for a topic-specific keyword to retrieve relevant history.\n"
-            "* **Check active integrations:** Ensure your connection credentials for GitHub, Jira, Sentry, and Slack are active in the **Setup** tab to retrieve real-time company history."
+            "* **Check active integrations:** Ensure your connection credentials for GitHub, Jira, Sentry, and Discord are active in the **Setup** tab to retrieve real-time company history."
         )
         return {
             "summary": no_info_summary,
@@ -1459,7 +1465,7 @@ def run_semantic_search(req: SearchRequest):
         "You are a friendly, expert AI assistant embedded in a developer tool. "
         "Your task is to answer the user's query using the provided context, which may include "
         "general repository information (README, description) and aggregated search results "
-        "from GitHub, Slack, Jira, and Sentry.\n\n"
+        "from GitHub, Discord, Jira, and Sentry.\n\n"
         "If the user is asking a general question (e.g. 'what is this repo about?'), use the "
         "'Repository Overview' context to explain the purpose of the project, its tech stack, and key features. "
         "If the user is searching for a bug or specific issue, explain WHO faced it, WHERE it was discussed, "
@@ -1660,6 +1666,8 @@ def connect_source(data: Dict[str, str]):
         CONNECTED_DEFAULTS["jira_email"] = data.get("jira_email", "")
     elif source.lower() == "sentry":
         CONNECTED_DEFAULTS["sentry_org"] = data.get("sentry_org", "")
+    elif source.lower() == "discord":
+        CONNECTED_DEFAULTS["discord_guild_id"] = data.get("discord_guild_id", "")
     
     try:
         if source.lower() == "jira":
@@ -1671,18 +1679,21 @@ def connect_source(data: Dict[str, str]):
             sentry_org = data.get("sentry_org", "")
             env_vars = f"SENTRY_ORG='{sentry_org}' SENTRY_TOKEN='{token}' SENTRY_AUTH_TOKEN='{token}'"
             cmd = ["wsl", "-d", "Ubuntu-24.04", "--", "bash", "-c", f"{env_vars} /root/.local/bin/coral source add sentry"]
+        elif source.lower() == "discord":
+            cmd = None
         else:
             env_key = f"{source.upper()}_TOKEN"
             if source.lower() == "github":
                 env_key = "GITHUB_TOKEN"
             cmd = ["wsl", "-d", "Ubuntu-24.04", "--", "bash", "-c", f"{env_key}='{token}' /root/.local/bin/coral source add {source.lower()}"]
             
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            check=True
-        )
+        if cmd:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                check=True
+            )
         return {"status": "success", "message": f"{source} connected successfully"}
     except subprocess.CalledProcessError as e:
         raise HTTPException(status_code=500, detail=f"Failed to connect {source}: {e.stderr}")

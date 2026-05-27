@@ -247,7 +247,7 @@ function App() {
   // Global settings and setup state
   const [lookbackDays, setLookbackDays] = useState(7);
   const [severityThreshold, setSeverityThreshold] = useState('medium');
-  const [slackChannels, setSlackChannels] = useState('#incident, #oncall');
+  const [discordChannels, setDiscordChannels] = useState('#incident, #oncall');
   const [cacheStats, setCacheStats] = useState({ size: '1.24 MB', queries: 24 });
   const [queryHistory, setQueryHistory] = useState([
     { timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(), query: "SELECT * FROM github.issues LIMIT 10;", rows: 10, status: "Success" },
@@ -563,7 +563,8 @@ function App() {
   const [connections, setConnections] = useState(() => {
     return {
       github: localStorage.getItem('coral_github_token') || '',
-      slack: localStorage.getItem('coral_slack_token') || '',
+      discord: localStorage.getItem('coral_discord_token') || '',
+      discord_guild_id: localStorage.getItem('coral_discord_guild_id') || '',
       jira: localStorage.getItem('coral_jira_token') || '',
       jira_url: localStorage.getItem('coral_jira_url') || '',
       jira_email: localStorage.getItem('coral_jira_email') || '',
@@ -592,12 +593,13 @@ function App() {
           body: JSON.stringify({ source: 'GitHub', token: savedGithub })
         }).catch(() => { });
       }
-      const savedSlack = localStorage.getItem('coral_slack_token');
-      if (savedSlack) {
+      const savedDiscord = localStorage.getItem('coral_discord_token');
+      if (savedDiscord) {
+        const savedDiscordGuildId = localStorage.getItem('coral_discord_guild_id');
         await fetch('http://127.0.0.1:8000/api/connect', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ source: 'Slack', token: savedSlack })
+          body: JSON.stringify({ source: 'Discord', token: savedDiscord, discord_guild_id: savedDiscordGuildId })
         }).catch(() => { });
       }
       const savedJira = localStorage.getItem('coral_jira_token');
@@ -1716,7 +1718,7 @@ function App() {
         }
 
         .landing-scope .node.n-github { top: 40px !important; left: calc(50% - 28px) !important; }
-        .landing-scope .node.n-slack  { bottom: 40px !important; left: calc(50% - 28px) !important; }
+        .landing-scope .node.n-discord  { bottom: 40px !important; left: calc(50% - 28px) !important; }
         .landing-scope .node.n-jira   { left: 40px !important; top: calc(50% - 28px) !important; }
         .landing-scope .node.n-sentry { right: 40px !important; top: calc(50% - 28px) !important; }
 
@@ -2139,7 +2141,7 @@ function App() {
         }
 
         .debug-source-title.sentry { color: #f87171 !important; }
-        .debug-source-title.slack { color: #34d399 !important; }
+        .debug-source-title.discord { color: #34d399 !important; }
         .debug-source-title.jira { color: #60a5fa !important; }
         .debug-source-title.github { color: #a78bfa !important; }
 
@@ -2309,7 +2311,7 @@ function App() {
                     Powered by <span>Coral</span>.
                   </h1>
                   <p className="hero-desc">
-                    The ultimate developer mission control portal. TOP consolidates Sentry, Slack, GitHub, and Jira using Coral's unified SQL query engine and an advanced multi-tier offline AI intelligence layer.
+                    The ultimate developer mission control portal. TOP consolidates Sentry, Discord, GitHub, and Jira using Coral's unified SQL query engine and an advanced multi-tier offline AI intelligence layer.
                   </p>
                   <div className="hero-ctas">
                     <button onClick={() => setView('dashboard')} className="btn btn-primary">Launch Dashboard</button>
@@ -2336,7 +2338,7 @@ function App() {
                       <div className="mockup-card" style={{ opacity: 0.85 }}>
                         <span className="mockup-pill" style={{ backgroundColor: 'rgba(239,68,68,0.15)', color: 'var(--danger)' }}>⚠️ Sentry Alert</span>
                         <span className="mockup-title">ZeroDivisionError: division by zero in auth.py</span>
-                        <p className="mockup-body">Identified 3 Slack conversations discussing this incident.</p>
+                        <p className="mockup-body">Identified 3 Discord conversations discussing this incident.</p>
                       </div>
                     </div>
                   </div>
@@ -2358,7 +2360,7 @@ function App() {
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M4 22V4c0-.5.2-1 .6-1.4C5 2.2 5.5 2 6 2h12c.5 0 1 .2 1.4.6.4.4.6.9.6 1.4v18l-5-4-5 4-5-4Z" /></svg>
                   </div>
                   <h3 className="feature-name">Unified SQL Adaptation</h3>
-                  <p className="feature-desc">Treat Jira, GitHub, Slack, and Sentry as standard SQL databases. Query cross-source metrics inside one single unified database view powered by Coral.</p>
+                  <p className="feature-desc">Treat Jira, GitHub, Discord, and Sentry as standard SQL databases. Query cross-source metrics inside one single unified database view powered by Coral.</p>
                 </div>
                 {/* Feature 2 */}
                 <div className="feature-card">
@@ -2600,7 +2602,7 @@ function App() {
                       IconComponent = ShieldAlert;
                     } else if (catLower.includes('ticket') || catLower.includes('jira') || catLower.includes('linear')) {
                       IconComponent = Link;
-                    } else if (catLower.includes('slack')) {
+                    } else if (catLower.includes('discord')) {
                       IconComponent = MessageSquare;
                     } else if (catLower.includes('issue')) {
                       IconComponent = AlertCircle;
@@ -2757,7 +2759,7 @@ function App() {
 
                         {(() => {
                           const standardKeys = [
-                            'category', 'title', 'message', 'reason', 'action', 'url', 'status', 'state', 'details', 'slack_mentions', 'jira_links',
+                            'category', 'title', 'message', 'reason', 'action', 'url', 'status', 'state', 'details', 'discord_mentions', 'jira_links',
                             'commit__message', 'commit_message', 'description', 'body', 'desc',
                             'sha', 'hash', 'commit__sha', 'id',
                             'commit__author__name', 'commit__author__date', 'commit__author', 'author', 'author_name',
@@ -2827,10 +2829,10 @@ function App() {
                                 Commented {metrics.last_comment.split('T')[0]}
                               </span>
                             )}
-                            {res.slack_mentions > 0 && (
+                            {res.discord_mentions > 0 && (
                               <span className="metric-pill success">
                                 <MessageSquare size={12} />
-                                {res.slack_mentions} Slack Mentions
+                                {res.discord_mentions} Discord Mentions
                               </span>
                             )}
                             {res.jira_links && res.jira_links.map((link, j) => (
@@ -2868,7 +2870,7 @@ function App() {
               <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
                 <div style={{ flex: 1, minWidth: '240px' }}>
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-dim)', marginBottom: '8px', letterSpacing: '0.05em' }}>
-                    🔗 Global Target Parameter URL / Link (GitHub, Slack, etc.)
+                    🔗 Global Target Parameter URL / Link (GitHub, Discord, etc.)
                   </label>
                   <input
                     type="text"
@@ -3209,7 +3211,7 @@ function App() {
                 <HelpCircle size={28} style={{ color: 'var(--accent)' }} /> Debug Assistant
               </h1>
               <p style={{ color: 'var(--text-dim)', marginTop: '4px' }}>
-                Ask a question to search across Sentry exceptions, Slack messages, Jira tickets, and GitHub issues.
+                Ask a question to search across Sentry exceptions, Discord messages, Jira tickets, and GitHub issues.
               </p>
             </header>
 
@@ -3218,7 +3220,7 @@ function App() {
               <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
                 <div style={{ flex: 1, minWidth: '240px' }}>
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-dim)', marginBottom: '8px', letterSpacing: '0.05em' }}>
-                    🔗 Global Target Parameter URL / Link (GitHub, Slack, etc.)
+                    🔗 Global Target Parameter URL / Link (GitHub, Discord, etc.)
                   </label>
                   {!isCustomLink ? (
                     <div style={{ display: 'flex', gap: '8px' }}>
@@ -3251,7 +3253,7 @@ function App() {
                         className="input"
                         value={paramValue}
                         onChange={(e) => setParamValue(e.target.value)}
-                        placeholder="e.g., https://github.com/owner/repo or slack/jira link"
+                        placeholder="e.g., https://github.com/owner/repo or discord/jira link"
                         style={{ height: '38px', fontSize: '13px', flex: 1 }}
                       />
                       <button
@@ -3308,7 +3310,7 @@ function App() {
                 <Zap size={40} className="spin" style={{ color: 'var(--accent)', marginBottom: '16px' }} />
                 <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '8px' }} className="pulse">Searching unified company history...</h3>
                 <p style={{ fontSize: '13px', color: 'var(--text-dim)', maxWidth: '400px', margin: '0 auto', lineHeight: '1.5' }}>
-                  Querying real-time Sentry issues, Slack channels, Jira boards, and GitHub repositories to find who faced this before.
+                  Querying real-time Sentry issues, Discord channels, Jira boards, and GitHub repositories to find who faced this before.
                 </p>
               </div>
             )}
@@ -3344,13 +3346,13 @@ function App() {
 
                 {debugResults.results && debugResults.results.length > 0 ? (
                   <div className="debug-source-groups">
-                    {['Sentry Exception', 'Jira Ticket', 'Slack Discussion', 'GitHub Issue', 'GitHub Commit'].map((sourceCategory) => {
+                    {['Sentry Exception', 'Jira Ticket', 'Discord Discussion', 'GitHub Issue', 'GitHub Commit'].map((sourceCategory) => {
                       const categoryMatches = debugResults.results.filter(item => item.category === sourceCategory);
                       if (categoryMatches.length === 0) return null;
 
                       let sectionClass = 'sentry';
                       let SectionIcon = ShieldAlert;
-                      if (sourceCategory.includes('Slack')) { sectionClass = 'slack'; SectionIcon = MessageSquare; }
+                      if (sourceCategory.includes('Discord')) { sectionClass = 'discord'; SectionIcon = MessageSquare; }
                       if (sourceCategory.includes('Jira')) { sectionClass = 'jira'; SectionIcon = Link; }
                       if (sourceCategory.includes('GitHub') || sourceCategory.includes('Commit')) {
                         sectionClass = 'github';
@@ -3549,7 +3551,7 @@ function App() {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {['GitHub', 'Slack', 'Jira', 'Sentry'].map((plat) => {
+                  {['GitHub', 'Discord', 'Jira', 'Sentry'].map((plat) => {
                     const isConnected = !!connections[plat.toLowerCase()];
                     return (
                       <div key={plat} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--bg-input)' }}>
@@ -3626,14 +3628,14 @@ function App() {
 
                   <div>
                     <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '6px' }}>
-                      💬 Slack Channels to Monitor for Incidents
+                      💬 Discord Channels to Monitor for Incidents
                     </label>
                     <input
                       type="text"
                       className="input"
                       style={{ height: '36px', fontSize: '13px' }}
-                      value={slackChannels}
-                      onChange={(e) => setSlackChannels(e.target.value)}
+                      value={discordChannels}
+                      onChange={(e) => setDiscordChannels(e.target.value)}
                     />
                   </div>
                 </div>
@@ -3654,7 +3656,7 @@ function App() {
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  {['GitHub', 'Slack', 'Jira', 'Sentry'].map((item) => (
+                  {['GitHub', 'Discord', 'Jira', 'Sentry'].map((item) => (
                     <button
                       key={item}
                       className="btn btn-secondary"
@@ -3676,6 +3678,11 @@ function App() {
                           const emailVal = prompt("Enter Jira Account Email:");
                           if (urlVal && emailVal) {
                             handleConnect(item, tokenVal, { jira_url: urlVal, jira_email: emailVal });
+                          }
+                        } else if (item === 'Discord') {
+                          const guildIdVal = prompt("Enter Discord Guild (Server) ID:");
+                          if (guildIdVal) {
+                            handleConnect(item, tokenVal, { discord_guild_id: guildIdVal });
                           }
                         } else if (item === 'Sentry') {
                           const orgVal = prompt("Enter Sentry Organization Slug:");
