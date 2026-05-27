@@ -96,18 +96,24 @@ const getCardMetadata = (res) => {
 const renderMarkdown = (text) => {
   if (!text) return null;
   const lines = text.split('\n');
+  
+  const parseInline = (str) => {
+    const parts = str.split(/\*\*(.*?)\*\*/g);
+    return parts.map((part, i) => i % 2 === 1 ? <strong key={i}>{part}</strong> : part);
+  };
+
   return lines.map((line, idx) => {
     let clean = line.trim();
     if (clean.startsWith('###')) {
-      return <h4 key={idx} style={{ fontSize: '13px', fontWeight: '700', color: 'var(--accent)', marginTop: '12px', marginBottom: '6px' }}>{clean.replace(/^###\s*/, '')}</h4>;
+      return <h4 key={idx} style={{ fontSize: '13px', fontWeight: '700', color: 'var(--accent)', marginTop: '12px', marginBottom: '6px' }}>{parseInline(clean.replace(/^###\s*/, ''))}</h4>;
     }
-    if (clean.startsWith('**') && clean.endsWith('**')) {
+    if (clean.startsWith('**') && clean.endsWith('**') && clean.split(/\*\*/).length === 3) {
       return <p key={idx} style={{ fontWeight: '700', fontSize: '13px', margin: '6px 0', color: 'var(--text-main)' }}>{clean.replace(/\*\*/g, '')}</p>;
     }
     if (clean.startsWith('*') || clean.startsWith('-')) {
-      return <li key={idx} style={{ fontSize: '12px', color: 'var(--text-main)', marginLeft: '12px', marginBottom: '4px', listStyleType: 'disc', fontFamily: "'Inter', sans-serif" }}>{clean.replace(/^[-*\s]+/, '')}</li>;
+      return <li key={idx} style={{ fontSize: '12px', color: 'var(--text-main)', marginLeft: '12px', marginBottom: '4px', listStyleType: 'disc', fontFamily: "'Inter', sans-serif" }}>{parseInline(clean.replace(/^[-*\s]+/, ''))}</li>;
     }
-    return <p key={idx} style={{ fontSize: '12px', color: 'var(--text-main)', margin: '4px 0', lineHeight: '1.6', fontFamily: "'Inter', sans-serif" }}>{clean}</p>;
+    return <p key={idx} style={{ fontSize: '12px', color: 'var(--text-main)', margin: '4px 0', lineHeight: '1.6', fontFamily: "'Inter', sans-serif" }}>{parseInline(clean)}</p>;
   });
 };
 
