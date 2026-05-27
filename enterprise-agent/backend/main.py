@@ -9,6 +9,13 @@ from pydantic import BaseModel
 from jinja2 import Template
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Dict, Any, List
+import http.client
+
+def safe_read(resp):
+    try:
+        return resp.read()
+    except http.client.IncompleteRead as e:
+        return e.partial
 
 app = FastAPI(title="Enterprise Agent Backend")
 
@@ -137,7 +144,7 @@ def fetch_jira_api(jql: str):
     req = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
+            data = json.loads(safe_read(resp).decode("utf-8"))
             issues = data.get("issues", [])
             return [
                 {
@@ -186,7 +193,7 @@ def fetch_github_api(path: str):
         headers["Authorization"] = f"Bearer {token}"
     req = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(req, timeout=20) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+        return json.loads(safe_read(resp).decode("utf-8"))
 
 
 SENTRY_API_BASE = "https://sentry.io/api/0"
@@ -203,7 +210,7 @@ def fetch_sentry_api(path: str):
     req = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
-            return json.loads(resp.read().decode("utf-8"))
+            return json.loads(safe_read(resp).decode("utf-8"))
     except Exception as e:
         print(f"Sentry API fetch error for {path}:", e)
         return None
@@ -253,7 +260,7 @@ def fetch_slack_search(query: str):
         }
         req = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(req, timeout=10) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
+            data = json.loads(safe_read(resp).decode("utf-8"))
             if data.get("ok"):
                 messages = data.get("messages", {}).get("matches", [])
                 return [
@@ -299,7 +306,7 @@ def fetch_jira_search(query: str):
     req = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
+            data = json.loads(safe_read(resp).decode("utf-8"))
             issues = data.get("issues", [])
             results = []
             for issue in issues:
