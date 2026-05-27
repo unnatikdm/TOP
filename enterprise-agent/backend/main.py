@@ -160,12 +160,15 @@ class SummarizeRequest(BaseModel):
     title: str = ""
     category: str = ""
 
+from typing import Optional
+
 class SearchRequest(BaseModel):
     query: str
-    owner: str = None
-    repo: str = None
+    owner: Optional[str] = None
+    repo: Optional[str] = None
     page: int = 1
     page_size: int = 20
+    source: str = "all"
 
 class QueryRequest(BaseModel):
     query: str
@@ -265,6 +268,11 @@ def fetch_slack_search(query: str):
                     }
                     for msg in messages
                 ]
+            elif data.get("error") == "invalid_auth":
+                return [{"error": True, "source": "Slack", "message": "Invalid authentication token. Please verify your token starts with xoxp- or xoxb-."}]
+    except Exception as e:
+        if hasattr(e, 'code') and e.code == 401:
+            return [{"error": True, "source": "Slack", "message": "Invalid authentication token. Please verify your token."}]
     except Exception as e:
         print("Slack search error:", e)
     return []
@@ -452,9 +460,8 @@ def fetch_github_search(query: str, owner: str = None, repo: str = None):
     if not owner or not repo:
         owner, repo = extract_repo_from_query(query, default_owner=initial_owner, default_repo=initial_repo)
     
-    # FIX 3: Append 'in:title' to heavily prioritize actual issue titles over boilerplate bodies,
-    # and explicitly exclude pull requests to separate bugs from code submissions.
-    safe_query = urllib.parse.quote(f"{query} in:title type:issue")
+    # Broaden the search query to check both titles and bodies for better results
+    safe_query = urllib.parse.quote(query)
     path = f"/search/issues?q={safe_query}+repo:{owner}/{repo}&per_page=5"
     
     try:
@@ -473,6 +480,8 @@ def fetch_github_search(query: str, owner: str = None, repo: str = None):
             for item in items
         ]
     except Exception as e:
+        if hasattr(e, 'code') and e.code == 401:
+            return [{"error": True, "source": "GitHub", "message": "Invalid GitHub Personal Access Token (PAT). Please re-enter a valid token."}]
         print("GitHub search error:", e)
         return []
 
@@ -1260,32 +1269,34 @@ def run_semantic_search(req: SearchRequest):
     if not query:
         raise HTTPException(status_code=400, detail="Query cannot be empty")
         
-    print(f"Executing semantic search for query: '{query}'")
+    print(f"Executing semantic search for query: '{query}' with source: '{req.source}'")
     
     # Extract owner and repo dynamically based on query and/or request parameters
     owner, repo = extract_repo_from_query(query, default_owner=req.owner, default_repo=req.repo)
     print(f"Dynamic repository extraction: owner='{owner}', repo='{repo}'")
 
-    # 1. Fetch live credentials results
-    sentry_res = fetch_sentry_search(query)
-    slack_res = fetch_slack_search(query)
-    jira_res = fetch_jira_search(query)
-    github_res = fetch_github_search(query, owner, repo)
-    github_commits = fetch_github_commits_search(query, owner, repo)
-    repo_info = fetch_github_repo_info(owner, repo) if owner and repo else None
+    # 1. Fetch live credentials results based on source filter
+    sentry_res = []
+    slack_res = []
+    jira_res = []
+    github_res = []
+    github_commits = []
+    repo_info = None
+
+    if req.source in ["all", "sentry"]:
+        sentry_res = fetch_sentry_search(query)
+    if req.source in ["all", "slack"]:
+        slack_res = fetch_slack_search(query)
+    if req.source in ["all", "jira"]:
+        jira_res = fetch_jira_search(query)
+    if req.source in ["all", "github"]:
+        github_res = fetch_github_search(query, owner, repo)
+        github_commits = fetch_github_commits_search(query, owner, repo)
+        repo_info = fetch_github_repo_info(owner, repo) if owner and repo else None
     
     results = []
     
-    # Prepend Repository Info if available, so the LLM always has context on what the repo is about
-    if repo_info:
-        results.append({
-            "category": "Repository Overview",
-            "title": f"{owner}/{repo} Repository Information",
-            "status": "Active",
-            "url": f"https://github.com/{owner}/{repo}",
-            "message": f"Description: {repo_info['description']}\nLanguage: {repo_info['language']}\nTopics: {', '.join(repo_info['topics'])}\nREADME snippet: {repo_info['readme']}",
-            "created_at": "Current"
-        })
+    # Repository Info will be prepended later if we actually find relevant logs/tickets
 
     
     # Extract query words for high-precision relevance filtering
@@ -1367,13 +1378,36 @@ def run_semantic_search(req: SearchRequest):
             "created_at": item["date"]
         })
 
+    # Prepend Repository Info if available, AND we actually found matching logs/tickets
+    if repo_info and len(results) > 0:
+        results.insert(0, {
+            "category": "Repository Overview",
+            "title": f"{owner}/{repo} Repository Information",
+            "status": "Active",
+            "url": f"https://github.com/{owner}/{repo}",
+            "message": f"Description: {repo_info['description']}\nLanguage: {repo_info['language']}\nTopics: {', '.join(repo_info['topics'])}\nREADME snippet: {repo_info['readme']}",
+            "created_at": "Current"
+        })
+
     # Pagination validation: cap page_size at 50, ensure page >= 1
     page = max(1, req.page)
     page_size = max(1, min(req.page_size, 50))
     total_results = len(results)
 
+    # Check if there are explicit auth errors
+    auth_errors = []
+    for res_list in [slack_res, github_res, sentry_res, jira_res]:
+        if res_list and isinstance(res_list[0], dict) and res_list[0].get("error"):
+            auth_errors.append(f"**{res_list[0]['source']}**: {res_list[0]['message']}")
+            
+    # Remove error dicts from valid results
+    slack_res = [r for r in slack_res if not r.get("error")]
+    github_res = [r for r in github_res if not r.get("error")]
+    sentry_res = [r for r in sentry_res if not r.get("error")]
+    jira_res = [r for r in jira_res if not r.get("error")]
+    
     # If absolutely no matching results were found (real or mock)
-    if not results:
+    if not results and not auth_errors:
         no_info_summary = (
             "### Overview\n"
             f"No related historical logs, exceptions, or conversations were found in your connected workspace for the query: **\"{query}\"**.\n\n"
@@ -1381,11 +1415,22 @@ def run_semantic_search(req: SearchRequest):
             "* **No active occurrences:** There are no Sentry exceptions or Jira tickets matching this topic.\n"
             "* **No recent discussions:** We couldn't find any Slack messages or GitHub PRs/issues discussing this topic.\n\n"
             "### Recommended Action\n"
-            "* **Try a specific search:** Search for a topic-specific keyword like **\"PostgreSQL connection pool exhausted\"** or **\"NullPointerException in session auth\"** to retrieve high-fidelity mock context.\n"
+            "* **Try a specific search:** Search for a topic-specific keyword to retrieve relevant history.\n"
             "* **Check active integrations:** Ensure your connection credentials for GitHub, Jira, Sentry, and Slack are active in the **Setup** tab to retrieve real-time company history."
         )
         return {
             "summary": no_info_summary,
+            "results": [],
+            "total_results": 0,
+            "page": page,
+            "page_size": page_size
+        }
+    elif not results and auth_errors:
+        auth_err_summary = "### ⚠️ Authentication Error\nYour search failed because of invalid API tokens. Please fix the following connections in the **Setup** tab:\n\n"
+        for err in auth_errors:
+            auth_err_summary += f"* {err}\n"
+        return {
+            "summary": auth_err_summary,
             "results": [],
             "total_results": 0,
             "page": page,

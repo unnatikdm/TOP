@@ -195,6 +195,7 @@ function App() {
 
   // Debug Assistant States
   const [debugQuery, setDebugQuery] = useState('');
+  const [debugSource, setDebugSource] = useState('all');
   const [debugResults, setDebugResults] = useState(null);
   const [debugLoading, setDebugLoading] = useState(false);
   const [debugError, setDebugError] = useState(null);
@@ -506,7 +507,8 @@ function App() {
           owner: parsedOwner,
           repo: parsedRepo,
           page: page,
-          page_size: debugPageSize
+          page_size: debugPageSize,
+          source: debugSource
         })
       });
       const data = await response.json();
@@ -574,50 +576,54 @@ function App() {
       .then(data => setBackendStatus(data))
       .catch(() => setBackendStatus({ coral_installed: false }));
 
-    // Sync saved tokens with backend on mount
-    const savedGithub = localStorage.getItem('coral_github_token');
-    if (savedGithub) {
-      fetch('http://127.0.0.1:8000/api/connect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source: 'GitHub', token: savedGithub })
-      }).catch(() => { });
-    }
-    const savedSlack = localStorage.getItem('coral_slack_token');
-    if (savedSlack) {
-      fetch('http://127.0.0.1:8000/api/connect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source: 'Slack', token: savedSlack })
-      }).catch(() => { });
-    }
-    const savedJira = localStorage.getItem('coral_jira_token');
-    if (savedJira) {
-      const savedJiraUrl = localStorage.getItem('coral_jira_url');
-      const savedJiraEmail = localStorage.getItem('coral_jira_email');
-      fetch('http://127.0.0.1:8000/api/connect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source: 'Jira', token: savedJira, jira_url: savedJiraUrl, jira_email: savedJiraEmail })
-      }).catch(() => { });
-    }
-    const savedSentry = localStorage.getItem('coral_sentry_token');
-    if (savedSentry) {
-      const savedSentryOrg = localStorage.getItem('coral_sentry_org');
-      fetch('http://127.0.0.1:8000/api/connect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source: 'Sentry', token: savedSentry, sentry_org: savedSentryOrg })
-      }).catch(() => { });
-    }
+    const initConnections = async () => {
+      // Sync saved tokens with backend on mount sequentially to avoid WSL concurrency issues
+      const savedGithub = localStorage.getItem('coral_github_token');
+      if (savedGithub) {
+        await fetch('http://127.0.0.1:8000/api/connect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ source: 'GitHub', token: savedGithub })
+        }).catch(() => { });
+      }
+      const savedSlack = localStorage.getItem('coral_slack_token');
+      if (savedSlack) {
+        await fetch('http://127.0.0.1:8000/api/connect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ source: 'Slack', token: savedSlack })
+        }).catch(() => { });
+      }
+      const savedJira = localStorage.getItem('coral_jira_token');
+      if (savedJira) {
+        const savedJiraUrl = localStorage.getItem('coral_jira_url');
+        const savedJiraEmail = localStorage.getItem('coral_jira_email');
+        await fetch('http://127.0.0.1:8000/api/connect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ source: 'Jira', token: savedJira, jira_url: savedJiraUrl, jira_email: savedJiraEmail })
+        }).catch(() => { });
+      }
+      const savedSentry = localStorage.getItem('coral_sentry_token');
+      if (savedSentry) {
+        const savedSentryOrg = localStorage.getItem('coral_sentry_org');
+        await fetch('http://127.0.0.1:8000/api/connect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ source: 'Sentry', token: savedSentry, sentry_org: savedSentryOrg })
+        }).catch(() => { });
+      }
 
-    // Fetch real tables
-    fetch('http://127.0.0.1:8000/api/tables')
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) setTables(data);
-      })
-      .catch(() => { });
+      // Fetch real tables after connections are made
+      fetch('http://127.0.0.1:8000/api/tables')
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) setTables(data);
+        })
+        .catch(() => { });
+    };
+    
+    initConnections();
   }, [theme]);
 
   useEffect(() => {
@@ -3276,16 +3282,18 @@ function App() {
                   executeSearch(q, 1);
                 }}
                 loading={debugLoading}
-                placeholder="e.g. DatabaseError: connection pool exhausted"
+                placeholder="e.g. how do I configure the database? or issue with session auth"
                 suggestions={[
-                  { label: 'PostgreSQL connection pool exhausted', value: 'PostgreSQL connection pool exhausted' },
-                  { label: 'NullPointerException in session auth', value: 'NullPointerException in session auth' }
+                  { label: 'How do I configure the database?', value: 'How do I configure the database?' },
+                  { label: 'Issue with session auth', value: 'Issue with session auth' }
                 ]}
                 onSuggestionClick={(val) => {
                   setDebugQuery(val);
                   executeSearch(val, 1);
                 }}
                 debounceMs={200}
+                source={debugSource}
+                onSourceChange={setDebugSource}
               />
             </section>
 
