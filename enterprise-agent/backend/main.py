@@ -2051,6 +2051,48 @@ def get_user_repos():
         print("Exception fetching repos:", e)
         return []
 
+
+# --- SINGLE SERVICE STATIC FRONTEND SERVING FOR DOCKER DEPLOYMENTS ---
+from fastapi.responses import HTMLResponse, FileResponse
+
+# Mount React dashboard static assets under /dashboard/assets
+dashboard_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "dashboard"))
+if os.path.exists(dashboard_dir):
+    from fastapi.staticfiles import StaticFiles
+    app.mount("/dashboard/assets", StaticFiles(directory=os.path.join(dashboard_dir, "assets")), name="dashboard-assets")
+
+# Route to serve the dashboard React page
+@app.get("/dashboard", response_class=HTMLResponse)
+@app.get("/dashboard/", response_class=HTMLResponse)
+def serve_dashboard():
+    dashboard_index = os.path.abspath(os.path.join(os.path.dirname(__file__), "dashboard/index.html"))
+    if os.path.exists(dashboard_index):
+        with open(dashboard_index, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    return HTMLResponse(content="Dashboard build folder not found.")
+
+# Route to serve landing page static images and assets (e.g. logos, icons, favicons)
+@app.get("/{filename}")
+def serve_root_asset(filename: str):
+    # Check if requested file exists in dashboard directory (logos/icons/images are here)
+    asset_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "dashboard", filename))
+    if os.path.exists(asset_path):
+        return FileResponse(asset_path)
+    # Check if requested file exists in backend directory
+    backend_asset_path = os.path.abspath(os.path.join(os.path.dirname(__file__), filename))
+    if os.path.exists(backend_asset_path):
+        return FileResponse(backend_asset_path)
+    raise HTTPException(status_code=404, detail="File not found")
+
+# Serve landing page index.html on root /
+@app.get("/", response_class=HTMLResponse)
+def serve_landing_page():
+    landing_index = os.path.abspath(os.path.join(os.path.dirname(__file__), "index.html"))
+    if os.path.exists(landing_index):
+        with open(landing_index, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    return HTMLResponse(content="Landing page index.html not found.")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
