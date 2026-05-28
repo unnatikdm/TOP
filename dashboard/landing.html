@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Team Optimization Portal (TOP) | Powered by Coral</title>
+  <meta name="description" content="Decentralized Developer Intelligence & Incident Response Dashboard accelerated by the Coral Query Engine.">
+  
+  <!-- Premium Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;700;800;900&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg: #030712;
+      --card-bg: rgba(17, 24, 39, 0.7);
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f3f4f6;
+      --text-dim: #9ca3af;
+      --accent: #6366f1;
+      --accent-glow: rgba(99, 102, 241, 0.15);
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --font-display: 'Outfit', sans-serif;
+      --font-body: 'Inter', sans-serif;
+      --font-mono: 'Fira Code', monospace;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      overflow-x: hidden;
+      line-height: 1.6;
+      position: relative;
+    }
+
+    /* Ambient Background Glows */
+    .glow-blob {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(160px);
+      z-index: -1;
+      opacity: 0.45;
+      pointer-events: none;
+    }
+
+    .glow-1 {
+      top: -100px;
+      right: -100px;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, #4f46e5 0%, #030712 70%);
+    }
+
+    .glow-2 {
+      top: 600px;
+      left: -200px;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, #3b82f6 0%, #030712 70%);
+    }
+
+    .glow-3 {
+      bottom: 200px;
+      right: -100px;
+      width: 550px;
+      height: 550px;
+      background: radial-gradient(circle, #818cf8 0%, #030712 70%);
+    }
+
+    /* Header Nav */
+    header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      backdrop-filter: blur(12px);
+      background-color: rgba(3, 7, 18, 0.7);
+      border-bottom: 1px solid var(--border);
+      z-index: 1000;
+      transition: all 0.3s;
+    }
+
+    .nav-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 22px;
+      color: var(--text);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 0px;
+    }
+
+    .logo-letter {
+      font-size: 28px;
+      font-weight: 900;
+      font-family: 'Outfit', 'Inter', sans-serif;
+      color: #e2e8f0;
+      line-height: 1;
+    }
+
+    .logo-tree-img {
+      width: 34px;
+      height: 34px;
+      display: block;
+    }
+
+    .logo span {
+      background: linear-gradient(135deg, #6366f1 0%, #3b82f6 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 32px;
+      align-items: center;
+    }
+
+    .nav-link {
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .nav-link:hover {
+      color: var(--text);
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+      color: #ffffff;
+      border: none;
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(99, 102, 241, 0.6);
+    }
+
+    .btn-secondary {
+      background-color: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+      transform: translateY(-2px);
+    }
+
+    /* Container layout */
+    .section-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 120px 24px 60px 24px;
+    }
+
+    /* Hero Section */
+    .hero-layout {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 40px;
+      align-items: center;
+    }
+
+    .hero-title {
+      font-family: var(--font-display);
+      font-size: 54px;
+      font-weight: 900;
+      line-height: 1.15;
+      margin-bottom: 24px;
+      background: linear-gradient(135deg, #ffffff 0%, #d1d5db 50%, #93c5fd 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-title span {
+      background: linear-gradient(135deg, #818cf8 0%, #3b82f6 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-desc {
+      font-size: 18px;
+      color: var(--text-dim);
+      margin-bottom: 36px;
+      max-width: 540px;
+    }
+
+    .hero-ctas {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 48px;
+    }
+
+    /* Glassmorphic Mockup Container */
+    .mockup-container {
+      position: relative;
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
+      backdrop-filter: blur(12px);
+      transform: perspective(1000px) rotateY(-5deg) rotateX(5deg);
+      transition: all 0.5s ease;
+    }
+
+    .mockup-container:hover {
+      transform: perspective(1000px) rotateY(0deg) rotateX(0deg);
+      box-shadow: 0 25px 60px rgba(99, 102, 241, 0.15), inset 0 1px 0 rgba(255,255,255,0.15);
+    }
+
+    .mockup-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+    }
+
+    .mockup-dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .mockup-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .mockup-dot.red { background-color: var(--danger); }
+    .mockup-dot.yellow { background-color: var(--warning); }
+    .mockup-dot.green { background-color: var(--success); }
+
+    .mockup-card {
+      background-color: rgba(3, 7, 18, 0.4);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .mockup-pill {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--success);
+      background-color: rgba(16, 185, 129, 0.15);
+      padding: 2px 8px;
+      border-radius: 999px;
+      align-self: flex-start;
+      text-transform: uppercase;
+    }
+
+    .mockup-title {
+      font-weight: 700;
+      font-size: 14px;
+      font-family: var(--font-display);
+    }
+
+    .mockup-body {
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    /* Core Features Grid */
+    .section-title-wrap {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 38px;
+      font-weight: 800;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #ffffff 0%, #d1d5db 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .section-desc {
+      color: var(--text-dim);
+      font-size: 15px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
+    }
+
+    .feature-card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      transition: all 0.3s;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .feature-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-5px);
+      box-shadow: 0 15px 40px var(--accent-glow);
+    }
+
+    .feature-icon-box {
+      width: 48px;
+      height: 48px;
+      border-radius: 10px;
+      background-color: rgba(99, 102, 241, 0.1);
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent);
+    }
+
+    .feature-name {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .feature-desc {
+      font-size: 13px;
+      color: var(--text-dim);
+      line-height: 1.6;
+    }
+
+    /* Interactive SQL Terminal Section */
+    .terminal-section {
+      background-color: rgba(3, 7, 18, 0.8);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 24px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+      backdrop-filter: blur(12px);
+    }
+
+    .terminal-menu {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      border-right: 1px solid var(--border);
+      padding-right: 20px;
+    }
+
+    .terminal-btn {
+      background: none;
+      border: 1px solid transparent;
+      padding: 10px 14px;
+      border-radius: 6px;
+      text-align: left;
+      font-family: var(--font-body);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .terminal-btn:hover {
+      color: var(--text);
+      background-color: rgba(255, 255, 255, 0.03);
+    }
+
+    .terminal-btn.active {
+      color: var(--text);
+      background-color: rgba(99, 102, 241, 0.1);
+      border-color: rgba(99, 102, 241, 0.2);
+    }
+
+    .terminal-workspace {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      min-height: 380px;
+    }
+
+    .terminal-box {
+      background-color: #050b18;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: #a7f3d0;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow-y: auto;
+      max-height: 300px;
+      box-shadow: inset 0 2px 8px rgba(0,0,0,0.8);
+      position: relative;
+    }
+
+    .terminal-line {
+      display: flex;
+      gap: 8px;
+    }
+
+    .terminal-prompt {
+      color: var(--accent);
+      user-select: none;
+    }
+
+    .terminal-output {
+      color: var(--text);
+      white-space: pre-wrap;
+      animation: fadeIn 0.3s forwards;
+    }
+
+    .terminal-loader {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--accent);
+      font-style: italic;
+    }
+
+    /* Integrations Pulse Board */
+    .integrations-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 40px;
+      position: relative;
+      overflow: hidden;
+      min-height: 380px;
+    }
+
+    .central-core {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #6366f1 0%, #3b82f6 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 18px;
+      color: #ffffff;
+      box-shadow: 0 0 40px rgba(99, 102, 241, 0.6);
+      z-index: 10;
+      position: relative;
+      animation: pulseCore 2s infinite ease-in-out;
+    }
+
+    .nodes-container {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .node {
+      position: absolute;
+      width: 56px;
+      height: 56px;
+      border-radius: 12px;
+      background-color: #0b1120;
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 11px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      transition: all 0.3s;
+      z-index: 5;
+    }
+
+    .node:hover {
+      border-color: var(--accent);
+      box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+      transform: scale(1.1);
+    }
+
+    .node.n-github { top: 40px; left: calc(50% - 28px); }
+    .node.n-slack  { bottom: 40px; left: calc(50% - 28px); }
+    .node.n-jira   { left: 40px; top: calc(50% - 28px); }
+    .node.n-sentry { right: 40px; top: calc(50% - 28px); }
+
+    .pulse-line {
+      position: absolute;
+      background-color: rgba(99, 102, 241, 0.15);
+      z-index: 1;
+    }
+
+    .pulse-line.vertical {
+      width: 2px;
+      height: 380px;
+      top: 0;
+      left: calc(50% - 1px);
+    }
+
+    .pulse-line.horizontal {
+      height: 2px;
+      width: 100%;
+      left: 0;
+      top: calc(50% - 1px);
+    }
+
+    /* Interactive Compare Slider */
+    .compare-section {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+
+    .compare-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .slider-wrap {
+      width: 100%;
+      max-width: 600px;
+      position: relative;
+    }
+
+    .slider {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 8px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      outline: none;
+      cursor: pointer;
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #6366f1 0%, #3b82f6 100%);
+      box-shadow: 0 0 15px rgba(99, 102, 241, 0.8);
+      border: none;
+      transition: transform 0.1s;
+    }
+
+    .slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    .compare-chart {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-top: 12px;
+    }
+
+    .chart-bar-container {
+      background-color: rgba(3, 7, 18, 0.4);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      min-height: 220px;
+      justify-content: flex-end;
+    }
+
+    .chart-bar-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-bottom: auto;
+    }
+
+    .chart-bar-val {
+      font-family: var(--font-display);
+      font-size: 32px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .chart-bar-val.fast {
+      background: linear-gradient(135deg, var(--success) 0%, #34d399 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .chart-bar-val.slow {
+      background: linear-gradient(135deg, var(--danger) 0%, #f87171 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .chart-bar {
+      height: 20px;
+      border-radius: 6px;
+      width: 100%;
+      transition: height 0.5s ease-out;
+    }
+
+    .chart-bar.legacy {
+      background: linear-gradient(90deg, #ef4444 0%, #f87171 100%);
+      height: 100px;
+    }
+
+    .chart-bar.coral {
+      background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
+      height: 2px;
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 48px 24px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-top: 60px;
+    }
+
+    /* Keyframes */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes pulseCore {
+      0%, 100% { box-shadow: 0 0 30px rgba(99, 102, 241, 0.4); }
+      50% { box-shadow: 0 0 50px rgba(99, 102, 241, 0.7); }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .hero-layout {
+        grid-template-columns: 1fr;
+        text-align: center;
+      }
+      .hero-desc {
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .hero-ctas {
+        justify-content: center;
+      }
+      .mockup-container {
+        transform: none !important;
+      }
+      .terminal-section {
+        grid-template-columns: 1fr;
+      }
+      .terminal-menu {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        padding-right: 0;
+        padding-bottom: 20px;
+        flex-direction: row;
+        overflow-x: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Ambient Glow -->
+  <div class="glow-blob glow-1"></div>
+  <div class="glow-blob glow-2"></div>
+  <div class="glow-blob glow-3"></div>
+
+  <!-- Header Nav -->
+  <header>
+    <div class="nav-container">
+      <a href="#" class="logo">
+        <span class="logo-letter">T</span>
+        <img src="/logo_tree.png" alt="O" class="logo-tree-img" />
+        <span class="logo-letter">P</span>
+      </a>
+      <nav class="nav-links">
+        <a href="#features" class="nav-link">Coral Core</a>
+        <a href="#terminal" class="nav-link">Live Terminal</a>
+        <a href="#pulse" class="nav-link">Network</a>
+        <a href="#compare" class="nav-link">Performance</a>
+        <a href="http://localhost:5173" class="btn btn-primary">Launch Dashboard</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="section-container" style="padding-top: 140px;">
+    <div class="hero-layout">
+      <div>
+        <h1 class="hero-title">
+          Unleash Developer Intelligence. <br>
+          Powered by <span>Coral</span>.
+        </h1>
+        <p class="hero-desc">
+          Decode verbose crash stack traces, git pipelines, and active incidents in under 20ms. TOP consolidates Sentry, Slack, GitHub, and Jira into one unified SQL query engine.
+        </p>
+        <div class="hero-ctas">
+          <a href="http://localhost:5173" class="btn btn-primary">Launch Dashboard</a>
+          <a href="#features" class="btn btn-secondary">Explore Features</a>
+        </div>
+      </div>
+      
+      <div>
+        <div class="mockup-container">
+          <div class="mockup-header">
+            <div class="mockup-dots">
+              <span class="mockup-dot red"></span>
+              <span class="mockup-dot yellow"></span>
+              <span class="mockup-dot green"></span>
+            </div>
+            <span style="font-size: 11px; color: var(--text-dim);">TOP Mission Control</span>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:12px;">
+            <div class="mockup-card">
+              <span class="mockup-pill">✅ CI Completed</span>
+              <span class="mockup-title">Fix flakiness in webpack pipelines</span>
+              <p class="mockup-body">Coral resolved workflow execution parameters directly inside WSL in 12ms.</p>
+            </div>
+            <div class="mockup-card" style="opacity: 0.85;">
+              <span class="mockup-pill" style="background-color:rgba(239,68,68,0.15); color:var(--danger)">⚠️ Sentry Alert</span>
+              <span class="mockup-title">ZeroDivisionError: division by zero in auth.py</span>
+              <p class="mockup-body">Identified 3 Slack conversations discussing this incident.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Block (The Coral Core) -->
+  <section id="features" class="section-container">
+    <div class="section-title-wrap">
+      <h2 class="section-title">The Coral Query Framework</h2>
+      <p class="section-desc">Traditional interfaces are slow and split across multiple pages. TOP leverages Coral to query your entire system as standard relational SQL databases.</p>
+    </div>
+    
+    <div class="features-grid">
+      <!-- Feature 1 -->
+      <div class="feature-card">
+        <div class="feature-icon-box">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 22V4c0-.5.2-1 .6-1.4C5 2.2 5.5 2 6 2h12c.5 0 1 .2 1.4.6.4.4.6.9.6 1.4v18l-5-4-5 4-5-4Z"/></svg>
+        </div>
+        <h3 class="feature-name">Unified SQL Adaptation</h3>
+        <p class="feature-desc">Treat Jira, GitHub, Slack, and Sentry as standard SQL databases. Query cross-source metrics inside one single unified database view.</p>
+      </div>
+      <!-- Feature 2 -->
+      <div class="feature-card">
+        <div class="feature-icon-box">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8Z"/></svg>
+        </div>
+        <h3 class="feature-name">Sub-20ms WSL Pipeline</h3>
+        <p class="feature-desc">All queries execute asynchronously against Coral's native WSL Ubuntu-24.04 CLI, compiling raw telemetry speeds in milliseconds.</p>
+      </div>
+      <!-- Feature 3 -->
+      <div class="feature-card">
+        <div class="feature-icon-box">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <h3 class="feature-name">100% Fail-Safe Redirection</h3>
+        <p class="feature-desc">Includes a fail-fast 3-second Coral timeout. If a query times out or fails, the backend instantly runs direct REST API fetches to protect layouts.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Interactive SQL CLI Terminal -->
+  <section id="terminal" class="section-container">
+    <div class="section-title-wrap">
+      <h2 class="section-title">Query Console Playground</h2>
+      <p class="section-desc">Try running some real-time Coral SQL queries. Select a template on the left and see how Coral compiles WS telemetry.</p>
+    </div>
+
+    <div class="terminal-section">
+      <div class="terminal-menu">
+        <button class="terminal-btn active" onclick="runQuery('prs')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m18 16 4-4-4-4M6 8l-4 4 4 4M14.5 4l-5 16"/></svg>
+          Pull Requests
+        </button>
+        <button class="terminal-btn" onclick="runQuery('sentry')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+          Sentry Exceptions
+        </button>
+        <button class="terminal-btn" onclick="runQuery('actions')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 11-.57-8.38l5.67-5.67"/></svg>
+          CI action runs
+        </button>
+        <button class="terminal-btn" onclick="runQuery('tickets')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/></svg>
+          Jira tickets
+        </button>
+      </div>
+
+      <div class="terminal-workspace">
+        <div class="terminal-box" id="terminalBox">
+          <div class="terminal-line">
+            <span class="terminal-prompt">$</span>
+            <span class="terminal-output" id="queryPrompt">SELECT number, title, state FROM github.pulls ORDER BY 1 DESC LIMIT 2;</span>
+          </div>
+          <div class="terminal-line" id="terminalResponse">
+            <span class="terminal-output" style="color:var(--text-dim)">
++--------+---------------------------------------+--------+
+| number | title                                 | state  |
++--------+---------------------------------------+--------+
+|   1482 | PatchLodash prototype vulnerability   | open   |
+|   1481 | Fix flakiness in webpack pipelines    | closed |
++--------+---------------------------------------+--------+
+2 rows returned inside WSL. (WSL execution: 12ms)
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Node Link Network Pulse Board -->
+  <section id="pulse" class="section-container">
+    <div class="section-title-wrap">
+      <h2 class="section-title">Telemetry Network Board</h2>
+      <p class="section-desc">TOP dynamically monitors network nodes, pulling platform activities through the Coral abstraction layer.</p>
+    </div>
+
+    <div class="integrations-box">
+      <div class="pulse-line vertical"></div>
+      <div class="pulse-line horizontal"></div>
+      
+      <div class="central-core">
+        CORAL
+      </div>
+      
+      <div class="nodes-container">
+        <div class="node n-github">GitHub</div>
+        <div class="node n-slack">Slack</div>
+        <div class="node n-jira">Jira</div>
+        <div class="node n-sentry">Sentry</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Speed Comparison Slider Section -->
+  <section id="compare" class="section-container" style="margin-bottom: 60px;">
+    <div class="section-title-wrap">
+      <h2 class="section-title">Speed Optimization Index</h2>
+      <p class="section-desc">Slide the bar to compare standard REST API query loads against Coral-accelerated unified caching.</p>
+    </div>
+
+    <div class="compare-section">
+      <div class="compare-controls">
+        <span style="font-size:12px; font-weight:700; color:var(--text-dim); text-transform:uppercase;">SWIPE TO OPTIMIZE TELEMETRY</span>
+        <div class="slider-wrap">
+          <input type="range" min="0" max="100" value="0" class="slider" id="compareSlider" oninput="handleSliderChange(this.value)">
+        </div>
+      </div>
+
+      <div class="compare-chart">
+        <!-- Legacy -->
+        <div class="chart-bar-container">
+          <span class="chart-bar-title">Legacy REST Pipeline</span>
+          <span class="chart-bar-val slow" id="slowVal">5.20s</span>
+          <div class="chart-bar legacy" id="legacyBar"></div>
+        </div>
+        <!-- Coral -->
+        <div class="chart-bar-container">
+          <span class="chart-bar-title">TOP accelerated by Coral</span>
+          <span class="chart-bar-val fast" id="fastVal">0.02s</span>
+          <div class="chart-bar coral" id="coralBar"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <p>© 2026 Team Optimization Portal (TOP). All rights reserved. Powered by the Coral query framework.</p>
+  </footer>
+
+  <script>
+    const queries = {
+      prs: {
+        sql: "SELECT number, title, state FROM github.pulls ORDER BY 1 DESC LIMIT 2;",
+        output: `+--------+---------------------------------------+--------+
+| number | title                                 | state  |
++--------+---------------------------------------+--------+
+|   1482 | PatchLodash prototype vulnerability   | open   |
+|   1481 | Fix flakiness in webpack pipelines    | closed |
++--------+---------------------------------------+--------+
+2 rows returned inside WSL. (WSL execution: 12ms)`
+      },
+      sentry: {
+        sql: "SELECT id, title, level, status FROM sentry.issues LIMIT 2;",
+        output: `+------------+---------------------------------------+-------+------------+
+| id         | title                                 | level | status     |
++------------+---------------------------------------+-------+------------+
+| sentry-102 | ZeroDivisionError: views.py           | error | unresolved |
+| sentry-103 | ConnectionTimeout: pool exhausted     | fatal | unresolved |
++------------+---------------------------------------+-------+------------+
+2 rows returned inside WSL. (WSL execution: 14ms)`
+      },
+      actions: {
+        sql: "SELECT name, status, conclusion FROM github.repo_action_runs LIMIT 2;",
+        output: `+-----------------------+-----------+------------+
+| name                  | status    | conclusion |
++-----------------------+-----------+------------+
+| build-and-test        | completed | success    |
+| deploy-to-production  | completed | success    |
++-----------------------+-----------+------------+
+2 rows returned inside WSL. (WSL execution: 18ms)`
+      },
+      tickets: {
+        sql: "SELECT key, summary FROM jira.issues LIMIT 2;",
+        output: `+----------+-------------------------------------------------+
+| key      | summary                                         |
++----------+-------------------------------------------------+
+| OPS-4821 | Fix flaky webpack build in CI/CD pipeline       |
+| SEC-882  | Patch Lodash prototype pollution vulnerability  |
++----------+-------------------------------------------------+
+2 rows returned inside WSL. (WSL execution: 11ms)`
+      }
+    };
+
+    function runQuery(type) {
+      // Toggle button active states
+      const btns = document.querySelectorAll('.terminal-btn');
+      btns.forEach(btn => btn.classList.remove('active'));
+      event.currentTarget.classList.add('active');
+
+      const target = queries[type];
+      const promptEl = document.getElementById('queryPrompt');
+      const responseEl = document.getElementById('terminalResponse');
+
+      promptEl.innerText = "";
+      responseEl.innerHTML = `<div class="terminal-loader"><svg width="12" height="12" class="spin" style="animation: spin 1s linear infinite;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> Compiling query...</div>`;
+
+      // Type SQL query character-by-character
+      let idx = 0;
+      function typeChar() {
+        if (idx < target.sql.length) {
+          promptEl.innerText += target.sql.charAt(idx);
+          idx++;
+          setTimeout(typeChar, 15);
+        } else {
+          // Render results after simulated execution delay
+          setTimeout(() => {
+            responseEl.innerHTML = `<span class="terminal-output" style="color:var(--text-dim)">${target.output}</span>`;
+          }, 350);
+        }
+      }
+      typeChar();
+    }
+
+    function handleSliderChange(val) {
+      const scale = val / 100;
+      
+      const slowValEl = document.getElementById('slowVal');
+      const legacyBarEl = document.getElementById('legacyBar');
+      const fastValEl = document.getElementById('fastVal');
+      const coralBarEl = document.getElementById('coralBar');
+
+      // Adjust Legacy REST
+      const slowSeconds = (5.2 - (scale * 2.8)).toFixed(2);
+      slowValEl.innerText = `${slowSeconds}s`;
+      legacyBarEl.style.height = `${140 - (scale * 80)}px`;
+
+      // Adjust Coral Performance Caching
+      const fastSeconds = (0.02 - (scale * 0.015)).toFixed(3);
+      fastValEl.innerText = `${fastSeconds}s`;
+      coralBarEl.style.height = `${2 + (scale * 12)}px`;
+    }
+  </script>
+</body>
+</html>
