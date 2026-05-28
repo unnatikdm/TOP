@@ -94,7 +94,14 @@ def load_connected_sources():
                     CONNECTED_TOKENS["sentry"] = match.group(1)
                 match_org = re.search(r'SENTRY_ORG=["\']?([^"\'\n\s]+)', res_sentry.stdout)
                 if match_org:
-                    CONNECTED_DEFAULTS["sentry_org"] = match_org.group(1)
+                    org_slug = match_org.group(1).strip()
+                    if "://" in org_slug:
+                        if ".sentry.io" in org_slug:
+                            org_slug = org_slug.split("://")[1].split(".sentry.io")[0]
+                        elif "/organizations/" in org_slug:
+                            org_slug = org_slug.split("/organizations/")[1].split("/")[0]
+                    org_slug = org_slug.strip("/")
+                    CONNECTED_DEFAULTS["sentry_org"] = org_slug
         except Exception:
             pass
 
@@ -780,10 +787,10 @@ def run_coral_query(query: str, demo_mode=False):
             ])
         return json.dumps([{"status": "demo", "message": "Coral not available - demo mode", "query": query}])
     
-    is_github = "github." in query.lower()
-    is_jira = "jira." in query.lower()
-    is_sentry = "sentry." in query.lower()
-    is_stackoverflow = "stackoverflow." in query.lower()
+    is_github = bool(re.search(r'\bfrom\s+github\.', query, re.IGNORECASE))
+    is_jira = bool(re.search(r'\bfrom\s+jira\.', query, re.IGNORECASE))
+    is_sentry = bool(re.search(r'\bfrom\s+sentry\.', query, re.IGNORECASE))
+    is_stackoverflow = bool(re.search(r'\bfrom\s+stackoverflow\.', query, re.IGNORECASE))
     
     # Determine timeout based on query type
     # For github queries, use a short 3-second timeout to fail-fast and fallback to direct GitHub REST API
@@ -1943,7 +1950,14 @@ def connect_source(data: Dict[str, str]):
         CONNECTED_DEFAULTS["jira_url"] = jira_url
         CONNECTED_DEFAULTS["jira_email"] = data.get("jira_email", "")
     elif source.lower() == "sentry":
-        CONNECTED_DEFAULTS["sentry_org"] = data.get("sentry_org", "")
+        org_slug = data.get("sentry_org", "").strip()
+        if "://" in org_slug:
+            if ".sentry.io" in org_slug:
+                org_slug = org_slug.split("://")[1].split(".sentry.io")[0]
+            elif "/organizations/" in org_slug:
+                org_slug = org_slug.split("/organizations/")[1].split("/")[0]
+        org_slug = org_slug.strip("/")
+        CONNECTED_DEFAULTS["sentry_org"] = org_slug
     elif source.lower() == "discord":
         CONNECTED_DEFAULTS["discord_guild_id"] = data.get("discord_guild_id", "")
     
