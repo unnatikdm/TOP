@@ -213,174 +213,7 @@ const formatAsAsciiTable = (data) => {
   return table;
 };
 
-const runMockQuery = (query) => {
-  const q = query.toLowerCase();
-  if (q.includes("github.pulls")) {
-    return [
-      { number: 1482, title: "Patch Lodash prototype pollution vulnerability", state: "open", user__login: "sriharsha" },
-      { number: 1481, title: "Fix flakiness in webpack pipelines", state: "closed", user__login: "unnatikdm" },
-      { number: 1480, title: "Update custom markdown bold renderer", state: "closed", user__login: "friend" }
-    ];
-  }
-  if (q.includes("sentry.issues")) {
-    return [
-      { id: "sentry-102", title: "ZeroDivisionError: division by zero in auth.py", level: "error", status: "unresolved", last_seen: "2026-05-27" },
-      { id: "sentry-103", title: "ConnectionTimeout: database connection pool exhausted", level: "fatal", status: "unresolved", last_seen: "2026-05-26" }
-    ];
-  }
-  if (q.includes("github.repo_action_runs")) {
-    return [
-      { id: 482109, name: "build-and-test", head_branch: "main", status: "completed", conclusion: "success" },
-      { id: 482108, name: "deploy-to-production", head_branch: "main", status: "completed", conclusion: "success" }
-    ];
-  }
-  if (q.includes("jira.issues")) {
-    return [
-      { key: "OPS-4821", summary: "Fix flaky webpack build in CI/CD pipeline", status: "In Progress", assignee: "Sriharsha", updated: "2026-05-27" },
-      { key: "SEC-882", summary: "Patch Lodash prototype pollution vulnerability", status: "Resolved", assignee: "Unnati", updated: "2026-05-26" }
-    ];
-  }
-  if (q.includes("stackoverflow.questions")) {
-    return [
-      { question_id: 48291, title: "How to resolve Webpack compile timeout in Docker", link: "https://stackoverflow.com/questions/48291" },
-      { question_id: 78219, title: "PostgreSQL connection pool exhausted error in Django", link: "https://stackoverflow.com/questions/78219" }
-    ];
-  }
-  return [{ message: "Coral SQL executed mock successfully", status: "demo" }];
-};
-
-const runMockSearch = (query, source = 'all') => {
-  const q = query.toLowerCase();
-  let results = [];
-  
-  if (source === 'all' || source === 'sentry') {
-    results.push({
-      category: "Sentry Exception",
-      title: "ZeroDivisionError: division by zero in views.py",
-      status: "unresolved",
-      url: "https://sentry.io/organizations/open-metadata/issues/102/",
-      message: "Exception flagged in project OpenMetadata (culprit: auth.py). Metadata: integer division or modulo by zero.",
-      created_at: "2026-05-27T12:00:00Z"
-    });
-    results.push({
-      category: "Sentry Exception",
-      title: "ConnectionTimeout: database connection pool exhausted",
-      status: "unresolved",
-      url: "https://sentry.io/organizations/open-metadata/issues/103/",
-      message: "Exception flagged in project OpenMetadata (culprit: db_pool.py). Metadata: max pool limit of 20 connections reached.",
-      created_at: "2026-05-26T15:30:00Z"
-    });
-  }
-  
-  if (source === 'all' || source === 'jira') {
-    results.push({
-      category: "Jira Ticket",
-      title: "OPS-4821: Fix flaky webpack build in CI/CD pipeline",
-      status: "In Progress",
-      url: "https://jira.atlassian.com/browse/OPS-4821",
-      message: "Assignee: Sriharsha. Description: The webpack compilation occasionally times out when building production assets under WSL environment.",
-      created_at: "2026-05-27"
-    });
-    results.push({
-      category: "Jira Ticket",
-      title: "SEC-882: Patch Lodash prototype pollution vulnerability",
-      status: "Closed",
-      url: "https://jira.atlassian.com/browse/SEC-882",
-      message: "Assignee: Unnati. Description: Lodash package under frontend dependencies needs to be updated to v4.17.21 to prevent proto injection.",
-      created_at: "2026-05-26"
-    });
-  }
-  
-  if (source === 'all' || source === 'discord') {
-    results.push({
-      category: "Discord Discussion",
-      title: "Conversation in #incident-channel",
-      status: "Chat",
-      url: "https://discord.com/channels/9812/4821/10984",
-      message: "Sriharsha: I verified that changing the PostgreSQL max_connections setting on staging to 100 resolved the database pool exhaustion issue.",
-      created_at: "2026-05-27T14:20:00Z"
-    });
-    results.push({
-      category: "Discord Discussion",
-      title: "Conversation in #oncall-alerts",
-      status: "Chat",
-      url: "https://discord.com/channels/9812/4821/10985",
-      message: "Bot: Alert: Sentry exception division by zero flagged in auth.py. Sriharsha is investigating.",
-      created_at: "2026-05-27T12:05:00Z"
-    });
-  }
-  
-  if (source === 'all' || source === 'github') {
-    results.push({
-      category: "GitHub Issue",
-      title: "#1482: Patch Lodash prototype pollution vulnerability",
-      status: "open",
-      url: "https://github.com/open-metadata/OpenMetadata/issues/1482",
-      message: "Author: Sriharsha. Body: We need to pull the latest Lodash release to secure frontend client queries.",
-      created_at: "2026-05-27"
-    });
-    results.push({
-      category: "GitHub Commit",
-      title: "Commit: Resolve merge conflicts in backend and configure Discord helper",
-      status: "Commit",
-      url: "https://github.com/unnatikdm/TOP/commit/5c1b9ae",
-      message: "Author: Unnati (unnatikadam50a@gmail.com). SHA: 5c1b9ae. Date: 2026-05-28",
-      created_at: "2026-05-28"
-    });
-  }
-
-  if (q.trim()) {
-    results = results.filter(item => 
-      item.title.toLowerCase().includes(q) || 
-      item.message.toLowerCase().includes(q)
-    );
-  }
-
-  results.unshift({
-    category: "Repository Overview",
-    title: "unnatikdm/TOP Repository Information",
-    status: "Active",
-    url: "https://github.com/unnatikdm/TOP",
-    message: "Description: Team Optimization Portal (TOP) query console.\nLanguage: JavaScript/Python\nTopics: wsl, coral-db, telemetry-caching\nREADME snippet: Coral enables querying cross-integration platforms in milliseconds.",
-    created_at: "Current"
-  });
-
-  const summary = `### Overview\nWe identified several historic logs, Sentry exceptions, and developer discussions related to **"${query}"** in your workspace.\n\n### Key Insights\n* **Database settings:** Discussions in Discord #incident suggest that pool exhaustion was mitigated by scaling max_connections to 100 on staging.\n* **Telemetry hits:** Matching events span Sentry, GitHub commits, and Jira logs.\n\n### Recommended Action\n* Verify configuration values in your Setup tab or inspect the linked Jira or Sentry links below.`;
-
-  return {
-    summary: summary,
-    results: results,
-    total_results: results.length,
-    page: 1,
-    page_size: 20
-  };
-};
-
-const runMockSummary = (message, title, category) => {
-  let overview = `🐞 **Incident Analysis:** Resolved recent troubleshooting traces matching *"${title || "system update"}"*.`;
-  let impact1 = "Application telemetry reported high exception counts in this category.";
-  let impact2 = "Developer velocity was blocked due to local sandbox environment errors.";
-  let recommendation = "Verify active WSL configuration parameters and confirm credentials in the Setup panel.";
-
-  if (category === "Sentry Exception") {
-    overview = `⚠️ **Critical Sentry Event:** Stack trace flagged a runtime exception: *"${title}"*.`;
-    impact1 = "Uncaught error leading to API request termination.";
-    impact2 = "Specific culprit flagged under connection adapter middleware.";
-    recommendation = "Implement proper null checks and database pool cleanup timeouts in configuration files.";
-  } else if (category === "Jira Ticket") {
-    overview = `🔧 **Jira Telemetry:** Active tracker for *"${title}"*.`;
-    impact1 = "Currently tracked under organization sprint objectives.";
-    impact2 = "Assigned developer has flagged this under system configurations.";
-    recommendation = "Review code changes, run automated tests locally, and check cross-references on GitHub.";
-  } else if (category === "Discord Discussion") {
-    overview = `💬 **Team Conversation:** Developer chat logged in the incident channel: *"${title}"*.`;
-    impact1 = "Team members resolved local environment discrepancies.";
-    impact2 = "Configurations and connection pool sizes were optimized live.";
-    recommendation = "Check channel message histories or direct references in GitHub PR comments.";
-  }
-
-  return `### Overview\n${overview}\n\n### Key Impacts\n* **Failure state:** ${impact1}\n* **Workspace impact:** ${impact2}\n\n### Recommended Action\n* ${recommendation}`;
-};
+// Local mock query execution functions have been completely eliminated. All features now query the backend directly.
 
 function App() {
   const [theme, setTheme] = useState('light');
@@ -595,15 +428,8 @@ function App() {
       .replace(/\{\{QUERY\}\}/g, parsedKeyword);
 
     if (!backendStatus.online) {
-      setTimeout(() => {
-        const mockResult = runMockQuery(interpolatedQuery);
-        setQueryResults(mockResult);
-        setQueryHistory(prev => [
-          { timestamp: new Date().toISOString(), query: interpolatedQuery, rows: Array.isArray(mockResult) ? mockResult.length : 1, status: "Success" },
-          ...prev
-        ]);
-        setQueryLoading(false);
-      }, 300);
+      setQueryError("FastAPI Backend is currently down or unreachable. Verify that the backend server is running.");
+      setQueryLoading(false);
       return;
     }
 
@@ -648,11 +474,8 @@ function App() {
     if (isExpanding && !summaries[index] && message) {
       setSummarizing(prev => ({ ...prev, [index]: true }));
       if (!backendStatus.online) {
-        setTimeout(() => {
-          const mockSummary = runMockSummary(message, title, category);
-          setSummaries(prev => ({ ...prev, [index]: mockSummary }));
-          setSummarizing(prev => ({ ...prev, [index]: false }));
-        }, 400);
+        setSummaries(prev => ({ ...prev, [index]: "### Backend Down\nUnable to generate AI summary because the backend server is unreachable." }));
+        setSummarizing(prev => ({ ...prev, [index]: false }));
         return;
       }
       try {
@@ -681,11 +504,8 @@ function App() {
     if (isExpanding && !debugSummaries[index] && message) {
       setDebugSummarizing(prev => ({ ...prev, [index]: true }));
       if (!backendStatus.online) {
-        setTimeout(() => {
-          const mockSummary = runMockSummary(message, title, category);
-          setDebugSummaries(prev => ({ ...prev, [index]: mockSummary }));
-          setDebugSummarizing(prev => ({ ...prev, [index]: false }));
-        }, 400);
+        setDebugSummaries(prev => ({ ...prev, [index]: "### Backend Down\nUnable to generate AI summary because the backend server is unreachable." }));
+        setDebugSummarizing(prev => ({ ...prev, [index]: false }));
         return;
       }
       try {
@@ -741,13 +561,8 @@ function App() {
     }
 
     if (!backendStatus.online) {
-      setTimeout(() => {
-        const mockSearch = runMockSearch(searchVal, debugSource);
-        setDebugResults(mockSearch);
-        setDebugTotalResults(mockSearch.total_results || 0);
-        setDebugPage(page);
-        setDebugLoading(false);
-      }, 500);
+      setDebugError("FastAPI Backend is currently down or unreachable. Verify that the backend server is running.");
+      setDebugLoading(false);
       return;
     }
 

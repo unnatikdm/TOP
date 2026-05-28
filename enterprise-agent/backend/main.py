@@ -428,7 +428,7 @@ def extract_repo_from_query(query: str, default_owner: str = None, default_repo:
         return default_owner, default_repo
         
     # Priority 4: Default global fallback
-    return "open-metadata", "OpenMetadata"
+    return "unnatikdm", "TOP"
 
 def fetch_github_repo_info(owner: str, repo: str):
     """Fetches repository metadata and README."""
@@ -757,62 +757,16 @@ def stackoverflow_fallback(query: str):
     except Exception as e:
         print(f"StackOverflow API fallback failed: {e}")
         
-    return [
-        {"question_id": 48291, "title": "How to resolve Webpack compile timeout in Docker", "link": "https://stackoverflow.com/questions/48291", "creation_date": "2026-05-20"},
-        {"question_id": 78219, "title": "PostgreSQL connection pool exhausted error in Django application", "link": "https://stackoverflow.com/questions/78219", "creation_date": "2026-05-24"}
-    ]
+    return []
 
 
 def run_coral_query(query: str, demo_mode=False):
-    """Executes a SQL query using the Coral CLI inside WSL.
-    Falls back to demo mode if Coral is not available."""
+    """Executes a SQL query using the Coral CLI inside WSL."""
     if demo_mode:
-        q_lower = query.lower()
-        if "sentry.issues" in q_lower:
-            return json.dumps([
-                {"id": "sentry-102", "title": "ZeroDivisionError: division by zero in views.py", "last_seen": "2026-05-25T12:00:00Z", "level": "error", "status": "unresolved"},
-                {"id": "sentry-103", "title": "ConnectionTimeout: database pool exhausted", "last_seen": "2026-05-25T11:30:00Z", "level": "fatal", "status": "unresolved"}
-            ])
-        elif "jira.issues" in q_lower:
-            return json.dumps([
-                {"key": "OPS-4821", "summary": "Fix flaky webpack build in CI/CD pipeline", "status": "In Progress", "assignee": "Sriharsha", "updated": "2026-05-27"},
-                {"key": "SEC-882", "summary": "Patch Lodash prototype pollution vulnerability", "status": "Resolved", "assignee": "Unnati", "updated": "2026-05-26"}
-            ])
-        elif "stackoverflow.questions" in q_lower:
-            return json.dumps([
-                {"question_id": 48291, "title": "How to resolve Webpack compile timeout in Docker", "link": "https://stackoverflow.com/questions/48291", "creation_date": "2026-05-20"}
-            ])
-        elif "github.pulls" in q_lower or "github.pull_requests" in q_lower:
-            return json.dumps([
-                {"number": 1482, "title": "Patch Lodash prototype pollution vulnerability", "state": "open", "user__login": "sriharsha", "created_at": "2026-05-27", "html_url": "https://github.com/open-metadata/OpenMetadata/pull/1482"},
-                {"number": 1481, "title": "Fix flakiness in webpack pipelines", "state": "closed", "user__login": "unnatikdm", "created_at": "2026-05-26", "html_url": "https://github.com/open-metadata/OpenMetadata/pull/1481"},
-                {"number": 1480, "title": "Update custom markdown bold renderer", "state": "closed", "user__login": "friend", "created_at": "2026-05-25", "html_url": "https://github.com/open-metadata/OpenMetadata/pull/1480"}
-            ])
-        elif "github.repo_action_runs" in q_lower or "github.action_runs" in q_lower:
-            return json.dumps([
-                {"id": 482109, "name": "build-and-test", "head_branch": "main", "status": "completed", "conclusion": "success", "updated_at": "2026-05-27", "url": "https://github.com/open-metadata/OpenMetadata/actions/runs/482109"},
-                {"id": 482108, "name": "deploy-to-production", "head_branch": "main", "status": "completed", "conclusion": "success", "updated_at": "2026-05-26", "url": "https://github.com/open-metadata/OpenMetadata/actions/runs/482108"}
-            ])
-        elif "github.issues" in q_lower:
-            return json.dumps([
-                {"number": 1482, "title": "Patch Lodash prototype pollution vulnerability", "state": "open", "user__login": "sriharsha", "created_at": "2026-05-27", "html_url": "https://github.com/open-metadata/OpenMetadata/issues/1482"},
-                {"number": 1481, "title": "Fix flakiness in webpack pipelines", "state": "closed", "user__login": "unnatikdm", "created_at": "2026-05-26", "html_url": "https://github.com/open-metadata/OpenMetadata/issues/1481"}
-            ])
-        elif "github.commits" in q_lower:
-            return json.dumps([
-                {"sha": "5c1b9ae", "commit__message": "Resolve merge conflicts in backend and configure Discord helper", "commit__author__name": "Unnati", "commit__author__date": "2026-05-28", "html_url": "https://github.com/unnatikdm/TOP/commit/5c1b9ae", "status": "commit", "message": "Resolve merge conflicts in backend and configure Discord helper", "created_at": "2026-05-28", "url": "https://github.com/unnatikdm/TOP/commit/5c1b9ae"},
-                {"sha": "1aeb482", "commit__message": "who owns better", "commit__author__name": "unnatikdm", "commit__author__date": "2026-05-27", "html_url": "https://github.com/unnatikdm/TOP/commit/1aeb482", "status": "commit", "message": "who owns better", "created_at": "2026-05-27", "url": "https://github.com/unnatikdm/TOP/commit/1aeb482"}
-            ])
-        elif "github.repos" in q_lower:
-            return json.dumps([
-                {"private": False, "description": "Team Optimization Portal (TOP) console", "stargazers_count": 42, "forks_count": 8, "open_issues_count": 2, "html_url": "https://github.com/unnatikdm/TOP", "status": "public", "message": "Team Optimization Portal (TOP) console", "stars": 42, "forks": 8, "open_issues": 2, "url": "https://github.com/unnatikdm/TOP"}
-            ])
-        elif "discord" in q_lower:
-            return json.dumps([
-                {"username": "Sriharsha", "text": "I verified that changing the PostgreSQL max_connections setting on staging to 100 resolved the database pool exhaustion issue.", "permalink": "https://discord.com/channels/9812/4821/10984", "channel": "incident-channel", "timestamp": "2026-05-27T14:20:00Z"},
-                {"username": "Bot", "text": "Alert: Sentry exception division by zero flagged in auth.py. Sriharsha is investigating.", "permalink": "https://discord.com/channels/9812/4821/10985", "channel": "oncall-alerts", "timestamp": "2026-05-27T12:05:00Z"}
-            ])
-        return json.dumps([{"status": "demo", "message": "Coral not available - demo mode", "query": query}])
+        raise HTTPException(
+            status_code=503,
+            detail="Coral CLI Engine is currently offline or not available. Please ensure Coral is installed in WSL or check your Setup tab connections to fetch real live data."
+        )
     
     is_github = bool(re.search(r'\bfrom\s+github\.', query, re.IGNORECASE))
     is_jira = bool(re.search(r'\bfrom\s+jira\.', query, re.IGNORECASE))
@@ -2893,7 +2847,7 @@ def get_user_repos():
     token = CONNECTED_TOKENS.get("github") or os.environ.get("GITHUB_TOKEN")
     if not token:
         return [
-            {"name": "open-metadata/OpenMetadata", "url": "https://github.com/open-metadata/OpenMetadata"},
+            {"name": "unnatikdm/TOP", "url": "https://github.com/unnatikdm/TOP"},
             {"name": "getsentry/sentry", "url": "https://github.com/getsentry/sentry"}
         ]
     
