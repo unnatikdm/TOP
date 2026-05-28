@@ -98,16 +98,16 @@ def load_connected_sources():
         except Exception:
             pass
 
-        # Read SLACK_TOKEN
+        # Read DISCORD_TOKEN
         try:
-            res_slack = subprocess.run(
-                ["wsl", "-d", "Ubuntu-24.04", "--", "cat", "/root/.config/coral/workspaces/default/sources/slack/secrets.env"],
+            res_discord = subprocess.run(
+                ["wsl", "-d", "Ubuntu-24.04", "--", "cat", "/root/.config/coral/workspaces/default/sources/discord/secrets.env"],
                 capture_output=True, text=True, timeout=15
             )
-            if res_slack.returncode == 0:
-                match = re.search(r'SLACK_TOKEN=["\']?([^"\'\n\s]+)', res_slack.stdout)
+            if res_discord.returncode == 0:
+                match = re.search(r'DISCORD_TOKEN=["\']?([^"\'\n\s]+)', res_discord.stdout)
                 if match:
-                    CONNECTED_TOKENS["slack"] = match.group(1)
+                    CONNECTED_TOKENS["discord"] = match.group(1)
         except Exception:
             pass
     except Exception as e:
@@ -167,13 +167,15 @@ class SummarizeRequest(BaseModel):
     title: str = ""
     category: str = ""
 
+from typing import Optional
+
 class SearchRequest(BaseModel):
     query: str
-    owner: str = None
-    repo: str = None
+    owner: Optional[str] = None
+    repo: Optional[str] = None
     page: int = 1
     page_size: int = 20
-    source: str = "All"
+    source: str = "all"
 
 class QueryRequest(BaseModel):
     query: str
@@ -246,35 +248,65 @@ def fetch_sentry_search(query: str):
         print("Sentry search helper error:", e)
         return []
 
-def fetch_slack_search(query: str):
-    token = CONNECTED_TOKENS.get("slack")
-    if not token:
+def fetch_discord_search(query: str):
+    token = CONNECTED_TOKENS.get("discord")
+    guild_id = CONNECTED_DEFAULTS.get("discord_guild_id")
+    if not token or not guild_id:
         return []
     
     try:
-        params = urllib.parse.urlencode({"query": query, "count": 5})
-        url = f"https://slack.com/api/search.messages?{params}"
+        # Strip common stop words to pass only keywords to Discord's strict exact-match search API
+        exclude_words = {"who", "last", "commited", "commit", "on", "top", "openmetadata", "and", "what", "was", "the", "issue", "with", "bug", "error", "failed", "failing", "build", "can", "you", "tell", "me", "about", "how", "do", "i", "find", "is", "there", "a", "an", "of", "in", "for", "to", "at", "by", "from", "show", "get", "fetch", "list", "all", "any", "some"}
+        words = query.split()
+        q_words = [w for w in words if w.lower() not in exclude_words]
+        search_str = " ".join(q_words) if q_words else query
+
+        params = urllib.parse.urlencode({"content": search_str})
+        url = f"https://discord.com/api/v9/guilds/{guild_id}/messages/search?{params}"
         headers = {
-            "Authorization": f"Bearer {token}",
-            "Accept": "application/json"
+            "Authorization": token,
+            "Accept": "application/json",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"
         }
         req = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(safe_read(resp).decode("utf-8"))
-            if data.get("ok"):
-                messages = data.get("messages", {}).get("matches", [])
-                return [
-                    {
-                        "username": msg.get("username") or msg.get("user") or "Slack User",
-                        "text": msg.get("text"),
-                        "permalink": msg.get("permalink"),
-                        "channel": msg.get("channel", {}).get("name") or "general",
-                        "timestamp": msg.get("ts")
-                    }
-                    for msg in messages
-                ]
+            messages = data.get("messages", [])
+            results = []
+            for hit in messages:
+                if not hit: continue
+                # The hit is a list of messages. We just take the first one (the match).
+                msg = hit[0]
+                author = msg.get("author", {})
+                username = author.get("username", "Discord User")
+                text = msg.get("content", "")
+                msg_id = msg.get("id")
+                channel_id = msg.get("channel_id")
+                timestamp = msg.get("timestamp")
+                permalink = f"https://discord.com/channels/{guild_id}/{channel_id}/{msg_id}"
+                results.append({
+                    "username": username,
+                    "text": text,
+                    "permalink": permalink,
+                    "channel": f"channel-{channel_id}",
+                    "timestamp": timestamp
+                })
+            return results
     except Exception as e:
-        print("Slack search error:", e)
+        if hasattr(e, 'code'):
+            if e.code in [401, 403]:
+                try:
+                    err_body = e.read().decode("utf-8")
+                    print("Discord API error details:", err_body)
+                except:
+                    pass
+                return [{"error": True, "source": "Discord", "message": "Invalid authentication token or lacking permissions. Ensure you are using a valid token and have access to the provided Guild ID."}]
+            try:
+                err_data = json.loads(e.read().decode("utf-8"))
+                return [{"error": True, "source": "Discord", "message": f"Discord API error: {err_data.get('message', e.reason)}"}]
+            except:
+                return [{"error": True, "source": "Discord", "message": f"Discord API error: {e.reason}"}]
+        print("Discord search error:", e)
     return []
 
 def fetch_jira_search(query: str):
@@ -460,9 +492,8 @@ def fetch_github_search(query: str, owner: str = None, repo: str = None):
     if not owner or not repo:
         owner, repo = extract_repo_from_query(query, default_owner=initial_owner, default_repo=initial_repo)
     
-    # FIX 3: Append 'in:title' to heavily prioritize actual issue titles over boilerplate bodies,
-    # and explicitly exclude pull requests to separate bugs from code submissions.
-    safe_query = urllib.parse.quote(f"{query} in:title type:issue")
+    # Broaden the search query to check both titles and bodies for better results
+    safe_query = urllib.parse.quote(query)
     path = f"/search/issues?q={safe_query}+repo:{owner}/{repo}&per_page=5"
     
     try:
@@ -481,6 +512,8 @@ def fetch_github_search(query: str, owner: str = None, repo: str = None):
             for item in items
         ]
     except Exception as e:
+        if hasattr(e, 'code') and e.code == 401:
+            return [{"error": True, "source": "GitHub", "message": "Invalid GitHub Personal Access Token (PAT). Please re-enter a valid token."}]
         print("GitHub search error:", e)
         return []
 
@@ -873,8 +906,8 @@ def execute_failure_hunter(params: Dict[str, Any]):
         except Exception:
             sentry_matches = []
 
-    # Slack messages that mention the commit (bypassed: slack.messages is not supported in this Coral version)
-    slack_matches = []
+    # Discord messages that mention the commit (bypassed: discord search by commit not supported currently)
+    discord_matches = []
 
     # Jira/Linear issues created near the workflow time
     ticket_matches = []
@@ -957,13 +990,13 @@ def execute_failure_hunter(params: Dict[str, Any]):
             "action": "Open Sentry to inspect the event and stack traces."
         })
 
-    if slack_matches:
+    if discord_matches:
         items.append({
-            "category": "Slack",
-            "title": f"{len(slack_matches)} Slack matches",
-            "message": "; ".join([m.get('text', '')[:120] for m in slack_matches]),
+            "category": "Discord",
+            "title": f"{len(discord_matches)} Discord matches",
+            "message": "; ".join([m.get('text', '')[:120] for m in discord_matches]),
             "status": "chat",
-            "action": "Check Slack for any ad-hoc fixes or rerun requests."
+            "action": "Check Discord for any ad-hoc fixes or rerun requests."
         })
 
     if ticket_matches:
@@ -1067,8 +1100,8 @@ def execute_pr_reaper(params: Dict[str, Any]):
             except Exception:
                 pass
 
-        # Correlate Slack mentions for this PR (bypassed: slack.messages is not supported in this Coral version)
-        slack_local = []
+        # Correlate Discord mentions for this PR (bypassed: discord is not supported in this Coral version)
+        discord_local = []
 
         # Correlate Jira/Linear tickets referencing this PR using direct Jira search REST API
         jira_local = []
@@ -1119,7 +1152,7 @@ def execute_pr_reaper(params: Dict[str, Any]):
                 "reason": reason,
                 "action": action,
                 "details": f"Reviews: {review_info['count']}, failed checks: {check_info['failed']}, ci_runs: {ci_reruns}, last_comment: {last_comment}",
-                "slack_mentions": len(slack_local),
+                "discord_mentions": len(discord_local),
                 "jira_links": [j.get('key') for j in jira_local]
             },
             "type": is_stale_type
@@ -1493,7 +1526,7 @@ def run_semantic_search(req: SearchRequest):
     if not query:
         raise HTTPException(status_code=400, detail="Query cannot be empty")
         
-    print(f"Executing semantic search for query: '{query}'")
+    print(f"Executing semantic search for query: '{query}' with source: '{req.source}'")
     
     # Extract owner and repo dynamically based on query and/or request parameters
     owner, repo = extract_repo_from_query(query, default_owner=req.owner, default_repo=req.repo)
@@ -1502,40 +1535,42 @@ def run_semantic_search(req: SearchRequest):
     # 1. Fetch live credentials results based on source filter
     source_filter = req.source.strip().lower() if req.source else "all"
     
-    sentry_res = []
-    slack_res = []
-    jira_res = []
+    discord_res = []
     github_res = []
+    sentry_res = []
+    jira_res = []
     github_commits = []
     repo_info = None
 
+    if source_filter in ("all", "discord"):
+        print("Querying Discord integration...")
+        discord_res = fetch_discord_search(query)
     if source_filter in ("all", "sentry"):
         print("Querying Sentry integration...")
         sentry_res = fetch_sentry_search(query)
-    if source_filter in ("all", "slack"):
-        print("Querying Slack integration...")
-        slack_res = fetch_slack_search(query)
     if source_filter in ("all", "jira"):
         print("Querying Jira integration...")
         jira_res = fetch_jira_search(query)
     if source_filter in ("all", "github"):
-        print("Querying GitHub integration...")
         github_res = fetch_github_search(query, owner, repo)
         github_commits = fetch_github_commits_search(query, owner, repo)
         repo_info = fetch_github_repo_info(owner, repo) if owner and repo else None
     
     results = []
     
-    # Prepend Repository Info if available, so the LLM always has context on what the repo is about
-    if repo_info:
-        results.append({
-            "category": "Repository Overview",
-            "title": f"{owner}/{repo} Repository Information",
-            "status": "Active",
-            "url": f"https://github.com/{owner}/{repo}",
-            "message": f"Description: {repo_info['description']}\nLanguage: {repo_info['language']}\nTopics: {', '.join(repo_info['topics'])}\nREADME snippet: {repo_info['readme']}",
-            "created_at": "Current"
-        })
+    # Check if there are explicit auth errors
+    auth_errors = []
+    for res_list in [discord_res, github_res, sentry_res, jira_res]:
+        if res_list and isinstance(res_list[0], dict) and res_list[0].get("error"):
+            auth_errors.append(f"**{res_list[0]['source']}**: {res_list[0]['message']}")
+            
+    # Remove error dicts from valid results
+    discord_res = [r for r in discord_res if not r.get("error")]
+    github_res = [r for r in github_res if not r.get("error")]
+    sentry_res = [r for r in sentry_res if not r.get("error")]
+    jira_res = [r for r in jira_res if not r.get("error")]
+
+    # Repository Info will be prepended later if we actually find relevant logs/tickets
 
     
     # Extract query words for high-precision relevance filtering
@@ -1564,13 +1599,13 @@ def run_semantic_search(req: SearchRequest):
             "created_at": item["last_seen"]
         })
         
-    # Format Slack matches
-    for item in slack_res:
+    # Format Discord matches
+    for item in discord_res:
         text_lower = item["text"].lower()
         if q_words and not any(w in text_lower for w in q_words):
             continue
         results.append({
-            "category": "Slack Discussion",
+            "category": "Discord Discussion",
             "title": f"Conversation in #{item['channel']}",
             "status": "Chat",
             "url": item["permalink"],
@@ -1617,22 +1652,33 @@ def run_semantic_search(req: SearchRequest):
             "created_at": item["date"]
         })
 
+    # Prepend Repository Info if available
+    if repo_info:
+        results.insert(0, {
+            "category": "Repository Overview",
+            "title": f"{owner}/{repo} Repository Information",
+            "status": "Active",
+            "url": f"https://github.com/{owner}/{repo}",
+            "message": f"Description: {repo_info['description']}\nLanguage: {repo_info['language']}\nTopics: {', '.join(repo_info['topics'])}\nREADME snippet: {repo_info['readme']}",
+            "created_at": "Current"
+        })
+
     # Pagination validation: cap page_size at 50, ensure page >= 1
     page = max(1, req.page)
     page_size = max(1, min(req.page_size, 50))
     total_results = len(results)
 
     # If absolutely no matching results were found (real or mock)
-    if not results:
+    if not results and not auth_errors:
         no_info_summary = (
             "### Overview\n"
             f"No related historical logs, exceptions, or conversations were found in your connected workspace for the query: **\"{query}\"**.\n\n"
             "### Key Insights\n"
             "* **No active occurrences:** There are no Sentry exceptions or Jira tickets matching this topic.\n"
-            "* **No recent discussions:** We couldn't find any Slack messages or GitHub PRs/issues discussing this topic.\n\n"
+            "* **No recent discussions:** We couldn't find any Discord messages or GitHub PRs/issues discussing this topic.\n\n"
             "### Recommended Action\n"
-            "* **Try a specific search:** Search for a topic-specific keyword like **\"PostgreSQL connection pool exhausted\"** or **\"NullPointerException in session auth\"** to retrieve high-fidelity mock context.\n"
-            "* **Check active integrations:** Ensure your connection credentials for GitHub, Jira, Sentry, and Slack are active in the **Setup** tab to retrieve real-time company history."
+            "* **Try a specific search:** Search for a topic-specific keyword to retrieve relevant history.\n"
+            "* **Check active integrations:** Ensure your connection credentials for GitHub, Jira, Sentry, and Discord are active in the **Setup** tab to retrieve real-time company history."
         )
         return {
             "summary": no_info_summary,
@@ -1641,23 +1687,33 @@ def run_semantic_search(req: SearchRequest):
             "page": page,
             "page_size": page_size
         }
+    elif not results and auth_errors:
+        auth_err_summary = "### ⚠️ Authentication Error\nYour search failed because of invalid API tokens. Please fix the following connections in the **Setup** tab:\n\n"
+        for err in auth_errors:
+            auth_err_summary += f"* {err}\n"
+        return {
+            "summary": auth_err_summary,
+            "results": [],
+            "total_results": 0,
+            "page": page,
+            "page_size": page_size
+        }
         
     # 3. Trigger 3-Tier AI Summarizer to Synthesize the Answers
-    context_list = []
+    context_text = ""
     for r in results[:4]:
-        context_list.append({
-            "source": r["category"],
-            "title": r["title"],
-            "status": r["status"],
-            "details": r["message"],
-            "date": r["created_at"]
-        })
+        context_text += f"Source: {r['category']}\n"
+        context_text += f"Title: {r['title']}\n"
+        context_text += f"Status: {r['status']}\n"
+        context_text += f"Details: {r['message']}\n"
+        context_text += f"Date: {r['created_at']}\n"
+        context_text += "---\n\n"
         
     prompt = (
         "You are a friendly, expert AI assistant embedded in a developer tool. "
         "Your task is to answer the user's query using the provided context, which may include "
         "general repository information (README, description) and aggregated search results "
-        "from GitHub, Slack, Jira, and Sentry.\n\n"
+        "from GitHub, Discord, Jira, and Sentry.\n\n"
         "If the user is asking a general question (e.g. 'what is this repo about?'), use the "
         "'Repository Overview' context to explain the purpose of the project, its tech stack, and key features. "
         "If the user is searching for a bug or specific issue, explain WHO faced it, WHERE it was discussed, "
@@ -1672,7 +1728,7 @@ def run_semantic_search(req: SearchRequest):
         "'TOP' or other repo names from the user's search query if they differ from the actual source context, as the user is "
         "querying the currently configured repository. If the context has no relevant information for the query, state that clearly.\n\n"
         f"Query: {query}\n\n"
-        f"Context:\n{json.dumps(context_list, indent=2)}"
+        f"Context:\n{context_text}"
     )
     
     summary_text = ""
@@ -1858,6 +1914,8 @@ def connect_source(data: Dict[str, str]):
         CONNECTED_DEFAULTS["jira_email"] = data.get("jira_email", "")
     elif source.lower() == "sentry":
         CONNECTED_DEFAULTS["sentry_org"] = data.get("sentry_org", "")
+    elif source.lower() == "discord":
+        CONNECTED_DEFAULTS["discord_guild_id"] = data.get("discord_guild_id", "")
     
     try:
         if source.lower() == "jira":
@@ -1869,18 +1927,21 @@ def connect_source(data: Dict[str, str]):
             sentry_org = data.get("sentry_org", "")
             env_vars = f"SENTRY_ORG='{sentry_org}' SENTRY_TOKEN='{token}' SENTRY_AUTH_TOKEN='{token}'"
             cmd = ["wsl", "-d", "Ubuntu-24.04", "--", "bash", "-c", f"{env_vars} /root/.local/bin/coral source add sentry"]
+        elif source.lower() == "discord":
+            cmd = None
         else:
             env_key = f"{source.upper()}_TOKEN"
             if source.lower() == "github":
                 env_key = "GITHUB_TOKEN"
             cmd = ["wsl", "-d", "Ubuntu-24.04", "--", "bash", "-c", f"{env_key}='{token}' /root/.local/bin/coral source add {source.lower()}"]
             
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            check=True
-        )
+        if cmd:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                check=True
+            )
         return {"status": "success", "message": f"{source} connected successfully"}
     except subprocess.CalledProcessError as e:
         raise HTTPException(status_code=500, detail=f"Failed to connect {source}: {e.stderr}")
