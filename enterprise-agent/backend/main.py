@@ -248,11 +248,18 @@ def fetch_discord_search(query: str):
         return []
     
     try:
-        params = urllib.parse.urlencode({"content": query})
+        # Strip common stop words to pass only keywords to Discord's strict exact-match search API
+        exclude_words = {"who", "last", "commited", "commit", "on", "top", "openmetadata", "and", "what", "was", "the", "issue", "with", "bug", "error", "failed", "failing", "build", "can", "you", "tell", "me", "about", "how", "do", "i", "find", "is", "there", "a", "an", "of", "in", "for", "to", "at", "by", "from", "show", "get", "fetch", "list", "all", "any", "some"}
+        words = query.split()
+        q_words = [w for w in words if w.lower() not in exclude_words]
+        search_str = " ".join(q_words) if q_words else query
+
+        params = urllib.parse.urlencode({"content": search_str})
         url = f"https://discord.com/api/v9/guilds/{guild_id}/messages/search?{params}"
         headers = {
             "Authorization": token,
-            "Accept": "application/json"
+            "Accept": "application/json",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"
         }
         req = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(req, timeout=10) as resp:
@@ -281,6 +288,11 @@ def fetch_discord_search(query: str):
     except Exception as e:
         if hasattr(e, 'code'):
             if e.code in [401, 403]:
+                try:
+                    err_body = e.read().decode("utf-8")
+                    print("Discord API error details:", err_body)
+                except:
+                    pass
                 return [{"error": True, "source": "Discord", "message": "Invalid authentication token or lacking permissions. Ensure you are using a valid token and have access to the provided Guild ID."}]
             try:
                 err_data = json.loads(e.read().decode("utf-8"))
@@ -1403,8 +1415,8 @@ def run_semantic_search(req: SearchRequest):
             "created_at": item["date"]
         })
 
-    # Prepend Repository Info if available, AND we actually found matching logs/tickets
-    if repo_info and len(results) > 0:
+    # Prepend Repository Info if available
+    if repo_info:
         results.insert(0, {
             "category": "Repository Overview",
             "title": f"{owner}/{repo} Repository Information",
@@ -1451,15 +1463,14 @@ def run_semantic_search(req: SearchRequest):
         }
         
     # 3. Trigger 3-Tier AI Summarizer to Synthesize the Answers
-    context_list = []
+    context_text = ""
     for r in results[:4]:
-        context_list.append({
-            "source": r["category"],
-            "title": r["title"],
-            "status": r["status"],
-            "details": r["message"],
-            "date": r["created_at"]
-        })
+        context_text += f"Source: {r['category']}\n"
+        context_text += f"Title: {r['title']}\n"
+        context_text += f"Status: {r['status']}\n"
+        context_text += f"Details: {r['message']}\n"
+        context_text += f"Date: {r['created_at']}\n"
+        context_text += "---\n\n"
         
     prompt = (
         "You are a friendly, expert AI assistant embedded in a developer tool. "
@@ -1480,7 +1491,7 @@ def run_semantic_search(req: SearchRequest):
         "'TOP' or other repo names from the user's search query if they differ from the actual source context, as the user is "
         "querying the currently configured repository. If the context has no relevant information for the query, state that clearly.\n\n"
         f"Query: {query}\n\n"
-        f"Context:\n{json.dumps(context_list, indent=2)}"
+        f"Context:\n{context_text}"
     )
     
     summary_text = ""
