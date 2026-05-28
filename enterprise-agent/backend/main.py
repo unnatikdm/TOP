@@ -60,95 +60,93 @@ CONNECTED_TOKENS = {}
 CONNECTED_DEFAULTS = {}
 
 def load_connected_sources():
+    # Read /root/.config/coral/config.toml directly from the filesystem
     try:
-        # Read /root/.config/coral/config.toml
-        res = subprocess.run(
-            ["wsl", "-d", "Ubuntu-24.04", "--", "cat", "/root/.config/coral/config.toml"],
-            capture_output=True, text=True, check=True, timeout=15
-        )
-        content = res.stdout
-        url_match = re.search(r'JIRA_BASE_URL\s*=\s*"([^"]+)"', content)
-        email_match = re.search(r'JIRA_EMAIL\s*=\s*"([^"]+)"', content)
-        if url_match:
-            jira_url = url_match.group(1)
-            # Sanitize URL to keep only scheme and domain
-            from urllib.parse import urlparse
-            try:
-                parsed = urlparse(jira_url)
-                if parsed.scheme and parsed.netloc:
-                    jira_url = f"{parsed.scheme}://{parsed.netloc}"
-            except Exception:
-                pass
-            CONNECTED_DEFAULTS["jira_url"] = jira_url
-        if email_match:
-            CONNECTED_DEFAULTS["jira_email"] = email_match.group(1)
-        
-        # Read GITHUB_TOKEN
-        try:
-            res_gh = subprocess.run(
-                ["wsl", "-d", "Ubuntu-24.04", "--", "cat", "/root/.config/coral/workspaces/default/sources/github/secrets.env"],
-                capture_output=True, text=True, timeout=15
-            )
-            if res_gh.returncode == 0:
-                match = re.search(r'GITHUB_TOKEN=["\']?([^"\'\n\s]+)', res_gh.stdout)
-                if match:
-                    CONNECTED_TOKENS["github"] = match.group(1)
-        except Exception:
-            pass
+        config_path = "/root/.config/coral/config.toml"
+        if os.path.exists(config_path):
+            with open(config_path, "r") as f:
+                content = f.read()
+            url_match = re.search(r'JIRA_BASE_URL\s*=\s*"([^"]+)"', content)
+            email_match = re.search(r'JIRA_EMAIL\s*=\s*"([^"]+)"', content)
+            if url_match:
+                jira_url = url_match.group(1)
+                # Sanitize URL to keep only scheme and domain
+                from urllib.parse import urlparse
+                try:
+                    parsed = urlparse(jira_url)
+                    if parsed.scheme and parsed.netloc:
+                        jira_url = f"{parsed.scheme}://{parsed.netloc}"
+                except Exception:
+                    pass
+                CONNECTED_DEFAULTS["jira_url"] = jira_url
+            if email_match:
+                CONNECTED_DEFAULTS["jira_email"] = email_match.group(1)
+    except Exception:
+        pass
 
-        # Read JIRA_API_TOKEN
-        try:
-            res_jira = subprocess.run(
-                ["wsl", "-d", "Ubuntu-24.04", "--", "cat", "/root/.config/coral/workspaces/default/sources/jira/secrets.env"],
-                capture_output=True, text=True, timeout=15
-            )
-            if res_jira.returncode == 0:
-                match = re.search(r'JIRA_API_TOKEN=["\']?([^"\'\n\s]+)', res_jira.stdout)
-                if match:
-                    CONNECTED_TOKENS["jira"] = match.group(1)
-        except Exception:
-            pass
+    # Read GITHUB_TOKEN
+    try:
+        gh_path = "/root/.config/coral/workspaces/default/sources/github/secrets.env"
+        if os.path.exists(gh_path):
+            with open(gh_path, "r") as f:
+                gh_content = f.read()
+            match = re.search(r'GITHUB_TOKEN=["\']?([^"\'\\n\\s]+)', gh_content)
+            if match:
+                CONNECTED_TOKENS["github"] = match.group(1)
+    except Exception:
+        pass
 
-        # Read SENTRY_TOKEN
-        try:
-            res_sentry = subprocess.run(
-                ["wsl", "-d", "Ubuntu-24.04", "--", "cat", "/root/.config/coral/workspaces/default/sources/sentry/secrets.env"],
-                capture_output=True, text=True, timeout=15
-            )
-            if res_sentry.returncode == 0:
-                match = re.search(r'SENTRY_TOKEN=["\']?([^"\'\n\s]+)', res_sentry.stdout)
-                if match:
-                    CONNECTED_TOKENS["sentry"] = match.group(1)
-                match_org = re.search(r'SENTRY_ORG=["\']?([^"\'\n\s]+)', res_sentry.stdout)
-                if match_org:
-                    org_slug = match_org.group(1).strip()
-                    if "://" in org_slug:
-                        if ".sentry.io" in org_slug:
-                            org_slug = org_slug.split("://")[1].split(".sentry.io")[0]
-                        elif "/organizations/" in org_slug:
-                            org_slug = org_slug.split("/organizations/")[1].split("/")[0]
-                    org_slug = org_slug.strip("/")
-                    CONNECTED_DEFAULTS["sentry_org"] = org_slug
-        except Exception:
-            pass
+    # Read JIRA_API_TOKEN
+    try:
+        jira_path = "/root/.config/coral/workspaces/default/sources/jira/secrets.env"
+        if os.path.exists(jira_path):
+            with open(jira_path, "r") as f:
+                jira_content = f.read()
+            match = re.search(r'JIRA_API_TOKEN=["\']?([^"\'\\n\\s]+)', jira_content)
+            if match:
+                CONNECTED_TOKENS["jira"] = match.group(1)
+    except Exception:
+        pass
 
-        # Read DISCORD_TOKEN
-        try:
-            res_discord = subprocess.run(
-                ["wsl", "-d", "Ubuntu-24.04", "--", "cat", "/root/.config/coral/workspaces/default/sources/discord/secrets.env"],
-                capture_output=True, text=True, timeout=15
-            )
-            if res_discord.returncode == 0:
-                match = re.search(r'DISCORD_TOKEN=["\']?([^"\'\n\s]+)', res_discord.stdout)
-                if match:
-                    CONNECTED_TOKENS["discord"] = match.group(1)
-        except Exception:
-            pass
-    except Exception as e:
-        print("Error loading existing sources from WSL:", e)
+    # Read SENTRY_TOKEN
+    try:
+        sentry_path = "/root/.config/coral/workspaces/default/sources/sentry/secrets.env"
+        if os.path.exists(sentry_path):
+            with open(sentry_path, "r") as f:
+                sentry_content = f.read()
+            match = re.search(r'SENTRY_TOKEN=["\']?([^"\'\\n\\s]+)', sentry_content)
+            if match:
+                CONNECTED_TOKENS["sentry"] = match.group(1)
+            match_org = re.search(r'SENTRY_ORG=["\']?([^"\'\\n\\s]+)', sentry_content)
+            if match_org:
+                org_slug = match_org.group(1).strip()
+                if "://" in org_slug:
+                    if ".sentry.io" in org_slug:
+                        org_slug = org_slug.split("://")[1].split(".sentry.io")[0]
+                    elif "/organizations/" in org_slug:
+                        org_slug = org_slug.split("/organizations/")[1].split("/")[0]
+                org_slug = org_slug.strip("/")
+                CONNECTED_DEFAULTS["sentry_org"] = org_slug
+    except Exception:
+        pass
 
-# Load existing sources on start
-load_connected_sources()
+    # Read DISCORD_TOKEN
+    try:
+        discord_path = "/root/.config/coral/workspaces/default/sources/discord/secrets.env"
+        if os.path.exists(discord_path):
+            with open(discord_path, "r") as f:
+                discord_content = f.read()
+            match = re.search(r'DISCORD_TOKEN=["\']?([^"\'\\n\\s]+)', discord_content)
+            if match:
+                CONNECTED_TOKENS["discord"] = match.group(1)
+    except Exception:
+        pass
+
+# Load existing sources on start — wrapped so a missing config never prevents startup
+try:
+    load_connected_sources()
+except Exception as e:
+    print("Warning: could not load connected sources on startup:", e)
 
 def fetch_jira_api(jql: str):
     url_base = CONNECTED_DEFAULTS.get("jira_url") or os.environ.get("JIRA_BASE_URL")
