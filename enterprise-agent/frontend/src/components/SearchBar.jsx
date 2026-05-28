@@ -19,10 +19,12 @@ export default function SearchBar({
   onChange,
   onSearch,
   loading = false,
-  placeholder = 'Search across GitHub, Slack, Jira, Sentry…',
+  placeholder = 'Search across GitHub, Discord, Jira, Sentry…',
   suggestions = [],
   onSuggestionClick,
-  debounceMs = 200
+  debounceMs = 200,
+  source = 'all',
+  onSourceChange
 }) {
   const [focused, setFocused] = useState(false);
   const inputRef = useRef(null);
@@ -49,7 +51,6 @@ export default function SearchBar({
   const handleChange = (e) => {
     const newVal = e.target.value;
     if (onChange) onChange(newVal);
-    debouncedSearch(newVal);
   };
 
   const handleKeyDown = (e) => {
@@ -75,6 +76,21 @@ export default function SearchBar({
             <Search size={20} />
           )}
         </div>
+        
+        {onSourceChange && (
+          <select 
+            value={source} 
+            onChange={(e) => onSourceChange(e.target.value)}
+            className="searchbar-source-select"
+          >
+            <option value="all">All Sources</option>
+            <option value="github">GitHub</option>
+            <option value="discord">Discord</option>
+            <option value="jira">Jira</option>
+            <option value="sentry">Sentry</option>
+          </select>
+        )}
+
         <input
           ref={inputRef}
           type="text"
