@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import './index.css';
 import SearchBar from './components/SearchBar';
+
+const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://127.0.0.1:8000' : '';
 import {
   MessageSquare,
   AlertCircle,
@@ -413,7 +415,7 @@ function App() {
   const [isCustomLink, setIsCustomLink] = useState(false);
 
   useEffect(() => {
-    fetch('http://localhost:8000/api/repos')
+    fetch(`${BACKEND_URL}/api/repos`)
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {
@@ -486,7 +488,7 @@ function App() {
         clearInterval(interval);
         setTerminalOutput("Compiling Coral query...");
         
-        fetch('http://localhost:8000/api/query', {
+        fetch(`${BACKEND_URL}/api/query`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ query: targetSql })
@@ -546,7 +548,7 @@ function App() {
     if (isExpanding && !tableColumns[tableName]) {
       setLoadingColumns(prev => ({ ...prev, [tableName]: true }));
       try {
-        const response = await fetch(`http://127.0.0.1:8000/api/columns/${tableName}`);
+        const response = await fetch(`${BACKEND_URL}/api/columns/${tableName}`);
         if (response.ok) {
           const data = await response.json();
           setTableColumns(prev => ({ ...prev, [tableName]: data }));
@@ -592,7 +594,7 @@ function App() {
       .replace(/\{\{REPO\}\}/g, parsedRepo)
       .replace(/\{\{QUERY\}\}/g, parsedKeyword);
 
-    if (!backendStatus.coral_installed) {
+    if (!backendStatus.online) {
       setTimeout(() => {
         const mockResult = runMockQuery(interpolatedQuery);
         setQueryResults(mockResult);
@@ -606,7 +608,7 @@ function App() {
     }
 
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/query', {
+      const response = await fetch(`${BACKEND_URL}/api/query`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: interpolatedQuery })
@@ -645,7 +647,7 @@ function App() {
 
     if (isExpanding && !summaries[index] && message) {
       setSummarizing(prev => ({ ...prev, [index]: true }));
-      if (!backendStatus.coral_installed) {
+      if (!backendStatus.online) {
         setTimeout(() => {
           const mockSummary = runMockSummary(message, title, category);
           setSummaries(prev => ({ ...prev, [index]: mockSummary }));
@@ -654,7 +656,7 @@ function App() {
         return;
       }
       try {
-        const response = await fetch('http://127.0.0.1:8000/api/summarize', {
+        const response = await fetch(`${BACKEND_URL}/api/summarize`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message, title, category })
@@ -678,7 +680,7 @@ function App() {
 
     if (isExpanding && !debugSummaries[index] && message) {
       setDebugSummarizing(prev => ({ ...prev, [index]: true }));
-      if (!backendStatus.coral_installed) {
+      if (!backendStatus.online) {
         setTimeout(() => {
           const mockSummary = runMockSummary(message, title, category);
           setDebugSummaries(prev => ({ ...prev, [index]: mockSummary }));
@@ -687,7 +689,7 @@ function App() {
         return;
       }
       try {
-        const response = await fetch('http://127.0.0.1:8000/api/summarize', {
+        const response = await fetch(`${BACKEND_URL}/api/summarize`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message, title, category })
@@ -738,7 +740,7 @@ function App() {
       }
     }
 
-    if (!backendStatus.coral_installed) {
+    if (!backendStatus.online) {
       setTimeout(() => {
         const mockSearch = runMockSearch(searchVal, debugSource);
         setDebugResults(mockSearch);
@@ -750,7 +752,7 @@ function App() {
     }
 
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/search', {
+      const response = await fetch(`${BACKEND_URL}/api/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -804,7 +806,7 @@ function App() {
     setActiveTabs(cached.activeTabs || {});
   };
 
-  const [backendStatus, setBackendStatus] = useState({ coral_installed: false });
+  const [backendStatus, setBackendStatus] = useState({ coral_installed: false, online: false });
   const [connections, setConnections] = useState(() => {
     return {
       github: localStorage.getItem('coral_github_token') || '',
@@ -823,10 +825,10 @@ function App() {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     // Check backend status
-    fetch('http://127.0.0.1:8000/api/status')
+    fetch(`${BACKEND_URL}/api/status`)
       .then(res => res.json())
       .then(data => {
-        setBackendStatus(data);
+        setBackendStatus({ ...data, online: true });
         const owner = data.github_owner || 'unnatikdm';
         const repo = data.github_repo || 'TOP';
         setParamValue(`https://github.com/${owner}/${repo}`);
@@ -836,7 +838,7 @@ function App() {
           .replace(/\{\{OWNER\}\}/g, owner)
           .replace(/\{\{REPO\}\}/g, repo);
 
-        fetch('http://127.0.0.1:8000/api/query', {
+        fetch(`${BACKEND_URL}/api/query`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ query: initialSql })
@@ -849,13 +851,13 @@ function App() {
             setTerminalOutput("0 rows returned inside WSL. (WSL execution: 8ms)");
           });
       })
-      .catch(() => setBackendStatus({ coral_installed: false }));
+      .catch(() => setBackendStatus({ coral_installed: false, online: false }));
 
     const initConnections = async () => {
       // Sync saved tokens with backend on mount sequentially to avoid WSL concurrency issues
       const savedGithub = localStorage.getItem('coral_github_token');
       if (savedGithub) {
-        await fetch('http://127.0.0.1:8000/api/connect', {
+        await fetch(`${BACKEND_URL}/api/connect`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ source: 'GitHub', token: savedGithub })
@@ -864,7 +866,7 @@ function App() {
       const savedDiscord = localStorage.getItem('coral_discord_token');
       if (savedDiscord) {
         const savedDiscordGuildId = localStorage.getItem('coral_discord_guild_id');
-        await fetch('http://127.0.0.1:8000/api/connect', {
+        await fetch(`${BACKEND_URL}/api/connect`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ source: 'Discord', token: savedDiscord, discord_guild_id: savedDiscordGuildId })
@@ -874,7 +876,7 @@ function App() {
       if (savedJira) {
         const savedJiraUrl = localStorage.getItem('coral_jira_url');
         const savedJiraEmail = localStorage.getItem('coral_jira_email');
-        await fetch('http://127.0.0.1:8000/api/connect', {
+        await fetch(`${BACKEND_URL}/api/connect`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ source: 'Jira', token: savedJira, jira_url: savedJiraUrl, jira_email: savedJiraEmail })
@@ -883,7 +885,7 @@ function App() {
       const savedSentry = localStorage.getItem('coral_sentry_token');
       if (savedSentry) {
         const savedSentryOrg = localStorage.getItem('coral_sentry_org');
-        await fetch('http://127.0.0.1:8000/api/connect', {
+        await fetch(`${BACKEND_URL}/api/connect`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ source: 'Sentry', token: savedSentry, sentry_org: savedSentryOrg })
@@ -891,7 +893,7 @@ function App() {
       }
 
       // Fetch real tables after connections are made
-      fetch('http://127.0.0.1:8000/api/tables')
+      fetch(`${BACKEND_URL}/api/tables`)
         .then(res => res.json())
         .then(data => {
           if (Array.isArray(data)) setTables(data);
@@ -928,7 +930,7 @@ function App() {
 
   const handleConnect = async (source, token, extraData = {}) => {
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/connect', {
+      const response = await fetch(`${BACKEND_URL}/api/connect`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ source, token, ...extraData })
@@ -1012,7 +1014,7 @@ function App() {
         fullRepoName = `${parsedOwner}/${parsedRepo}`;
       }
 
-      const response = await fetch('http://127.0.0.1:8000/api/execute', {
+      const response = await fetch(`${BACKEND_URL}/api/execute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -2527,15 +2529,15 @@ function App() {
 
           <div style={{ marginTop: 'auto', fontSize: '12px', color: 'var(--text-dim)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: backendStatus.coral_installed ? 'var(--success)' : 'var(--warning)' }} />
-              Backend: {backendStatus.coral_installed ? 'Connected' : 'Offline (Demo Mode)'}
+              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: backendStatus.online ? 'var(--success)' : 'var(--warning)' }} />
+              Backend: {backendStatus.online ? (backendStatus.coral_installed ? 'Connected (WSL Engine)' : 'Connected (Cloud Serverless)') : 'Offline (Demo Mode)'}
             </div>
           </div>
         </aside>
       )}
 
       <main className="main-content" style={{ padding: isLanding ? '0' : '40px' }}>
-        {!isLanding && !backendStatus.coral_installed && (
+        {!isLanding && !backendStatus.online && (
           <div style={{
             background: 'rgba(239, 68, 68, 0.1)',
             border: '1px solid rgba(239, 68, 68, 0.2)',

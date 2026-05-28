@@ -958,7 +958,7 @@ def execute_failure_hunter(params: Dict[str, Any]):
         items.append({
             "category": "Related Issues",
             "title": f"{len(build_issues)} build-related issues",
-            "message": "; ".join([f"#{issue['number']} {issue['title']}" for issue in build_issues]),
+            "message": "; ".join([f"#{issue.get('number')} {issue.get('title')}" if 'number' in issue and 'title' in issue else issue.get('message', 'No details') for issue in build_issues]),
             "status": "issues",
             "action": "Review these issues for similar failures."
         })
@@ -975,7 +975,7 @@ def execute_failure_hunter(params: Dict[str, Any]):
         items.append({
             "category": "Recent PRs",
             "title": f"{len(pull_requests)} recent pull requests",
-            "message": "; ".join([f"#{pr['number']} {pr['title']}" for pr in pull_requests[:3]]),
+            "message": "; ".join([f"#{pr.get('number')} {pr.get('title')}" if 'number' in pr and 'title' in pr else pr.get('message', 'No details') for pr in pull_requests[:3]]),
             "status": "context",
             "action": "Check recent PR changes for code that may have broken the build."
         })
