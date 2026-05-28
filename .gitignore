@@ -44,3 +44,4 @@ logs/
 tmp/
 *.tmp
 .vercel
+dashboard/
