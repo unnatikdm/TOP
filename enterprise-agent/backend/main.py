@@ -1826,87 +1826,163 @@ def execute_postmortem(params: Dict[str, Any]):
     if not owner or not repo:
         raise HTTPException(status_code=400, detail="OWNER and REPO required for Timeline")
         
-    sentry_token = CONNECTED_TOKENS.get("sentry")
     github_token = CONNECTED_TOKENS.get("github") or os.environ.get("GITHUB_TOKEN")
-    
-    if not sentry_token:
-        raise HTTPException(status_code=400, detail="Sentry Token is missing. Please connect Sentry in the Setup tab first.")
+    if not github_token:
+        raise HTTPException(status_code=400, detail="GitHub Token is missing. Please connect your GitHub account in the Setup tab first.")
         
-    sentry_issues = fetch_sentry_search("is:unresolved")
-    
-    action_runs = []
-    if github_token:
-        try:
-            workflow_data = fetch_github_api(f"/repos/{owner}/{repo}/actions/runs?per_page=10")
-            if isinstance(workflow_data, dict) and "workflow_runs" in workflow_data:
-                action_runs = workflow_data["workflow_runs"]
-        except Exception as e:
-            print("Failed to fetch workflow action runs:", e)
-            
-    failures_str = ""
-    for idx, issue in enumerate(sentry_issues[:3]):
-        failures_str += f"[Sentry Exception] Title: {issue['title']} in project {issue['project_name']}. Level: error. Last Seen: {issue['last_seen']}. URL: {issue['permalink']}\n"
-    for idx, run in enumerate(action_runs[:5]):
-        if run.get("conclusion") not in ("success", "skipped", "neutral"):
-            failures_str += f"[GitHub CI Failure] Name: {run.get('name')}. Branch: {run.get('head_branch')}. Conclusion: {run.get('conclusion')}. Date: {run.get('updated_at')}. URL: {run.get('html_url')}\n"
+    # 1. Fetch recent workflow runs
+    try:
+        workflow_data = fetch_github_api(f"/repos/{owner}/{repo}/actions/runs?per_page=10")
+        action_runs = workflow_data.get("workflow_runs", []) if isinstance(workflow_data, dict) else []
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"GitHub API Error: Failed to fetch workflow runs. Details: {str(e)}")
 
-    if not failures_str:
-        failures_str = "No active crashes or workflow failures found. Sentry and GitHub Actions are currently 100% healthy!"
+    # 2. Fetch recent commits to correlate authors
+    try:
+        commits = fetch_github_api(f"/repos/{owner}/{repo}/commits?per_page=15")
+        commit_map = {c.get("sha"): c for c in commits} if isinstance(commits, list) else {}
+    except Exception:
+        commit_map = {}
+
+    # 3. Fetch recent issues/PRs for context
+    try:
+        issues = fetch_github_api(f"/repos/{owner}/{repo}/issues?state=all&per_page=15")
+        recent_issues = issues if isinstance(issues, list) else []
+    except Exception:
+        recent_issues = []
+
+    # 4. Fetch job details for failing runs
+    failed_runs_details = []
+    for run in action_runs:
+        conclusion = run.get("conclusion")
+        if conclusion not in ("success", "skipped", "neutral", None):
+            run_id = run.get("id")
+            failed_steps = []
+            try:
+                jobs_data = fetch_github_api(f"/repos/{owner}/{repo}/actions/runs/{run_id}/jobs")
+                jobs = jobs_data.get("jobs", []) if isinstance(jobs_data, dict) else []
+                for job in jobs:
+                    if job.get("conclusion") not in ("success", "skipped", "neutral"):
+                        for step in job.get("steps", []):
+                            if step.get("conclusion") not in ("success", "skipped", "neutral"):
+                                failed_steps.append({
+                                    "job_name": job.get("name"),
+                                    "step_name": step.get("name"),
+                                    "number": step.get("number"),
+                                    "status": step.get("status"),
+                                    "conclusion": step.get("conclusion")
+                                })
+            except Exception:
+                pass
+                
+            sha = run.get("head_sha")
+            commit = commit_map.get(sha, {})
+            author_name = commit.get("commit", {}).get("author", {}).get("name") or run.get("triggering_actor", {}).get("login") or "Unknown"
+            commit_msg = commit.get("commit", {}).get("message", "").splitlines()[0] if commit else "No commit message"
+            
+            failed_runs_details.append({
+                "id": run_id,
+                "name": run.get("name"),
+                "event": run.get("event"),
+                "author": author_name,
+                "commit_sha": sha[:7],
+                "commit_msg": commit_msg,
+                "created_at": run.get("created_at"),
+                "updated_at": run.get("updated_at"),
+                "url": run.get("html_url"),
+                "failed_steps": failed_steps
+            })
+
+    # Prepare timeline context
+    failures_context = ""
+    if failed_runs_details:
+        for idx, run in enumerate(failed_runs_details[:3]):
+            failures_context += f"--- CRASH EVENT {idx+1} ---\n"
+            failures_context += f"Workflow Run: {run['name']} (Event: {run['event']})\n"
+            failures_context += f"Triggered By: {run['author']} via commit {run['commit_sha']} ('{run['commit_msg']}')\n"
+            failures_context += f"Started At: {run['created_at']}\n"
+            failures_context += f"Failed At: {run['updated_at']}\n"
+            failures_context += f"Workflow Run URL: {run['url']}\n"
+            if run['failed_steps']:
+                failures_context += "Failed Steps:\n"
+                for step in run['failed_steps']:
+                    failures_context += f"  - Job '{step['job_name']}' -> Step '{step['step_name']}' failed (conclusion: {step['conclusion']})\n"
+            failures_context += "\n"
+    else:
+        failures_context = "No active workflow failures found in the latest runs. All pipelines are currently healthy!\n"
+        for idx, run in enumerate(action_runs[:5]):
+            failures_context += f"- Run {run.get('name')} finished with status {run.get('status')}/{run.get('conclusion')} on {run.get('updated_at')}\n"
+
+    # Add related issues context
+    issues_context = ""
+    bug_issues = [i for i in recent_issues if any(w in i.get("title", "").lower() for w in ["bug", "fail", "crash", "error", "issue", "failure"])]
+    if bug_issues:
+        issues_context += "Recent related bug issues / PRs:\n"
+        for i in bug_issues[:4]:
+            issues_context += f"- #{i.get('number')}: {i.get('title')} ({i.get('state')}) - {i.get('html_url')}\n"
 
     prompt = (
-        f"You are a Senior Reliability Engineer constructing an Incident Crash Timeline (Postmortem Analysis) for {owner}/{repo}.\n"
-        f"Here are the active Sentry exceptions and failing GitHub workflow runs from the live workspace:\n"
-        f"{failures_str}\n\n"
-        f"Construct a detailed timeline of events (in UTC time) based on the timestamps in the context.\n"
-        f"Explain what crashed, what the severity is, and what the suggested mitigation steps are.\n"
+        f"You are a Senior Principal Site Reliability Engineer compiling an Incident Postmortem Timeline of recent crashes/failures "
+        f"derived exclusively from live GitHub Actions CI/CD metrics.\n\n"
+        f"Here is the real-time GitHub Actions failure context for the repository {owner}/{repo}:\n"
+        f"{failures_context}\n"
+        f"{issues_context}\n"
+        f"Task:\n"
+        f"1. Construct a minute-by-minute timeline of the crash: when the commit was pushed, when the build started, "
+        f"which job and step failed, what exactly crashed (e.g. tests or build step), and when/how it was resolved or its current state.\n"
+        f"2. Explain who triggered the commit, the commit message, and any corresponding GitHub Issues or subsequent commits.\n\n"
         f"Structure your response exactly with these headers:\n"
-        f"### Overview\n(1-2 sentences summarizing the crash event, severity, and resolution/current status)\n\n"
+        f"### Overview\n(1-2 sentences summarizing the crash event, what failed, and its severity/velocity impact)\n\n"
         f"### Crash Events Chronology\n"
         f"Draft a chronology of incidents with exact dates/times from the context."
     )
 
     ai_analysis = ask_ai_summarizer(prompt)
-    summary_msg = ai_analysis.split("### Crash Events Chronology")[0].replace("### Overview", "").strip() if ai_analysis else "The system compiled recent production alerts and workflow telemetry to produce the incident timeline."
+    summary_msg = ai_analysis.split("### Crash Events Chronology")[0].replace("### Overview", "").strip() if ai_analysis else "The system compiled recent GitHub Action run failures to reconstruct the incident crash timeline."
 
     items = [
         {
             "category": "Summary",
             "title": "Incident Timeline (Postmortem Analysis)",
             "message": summary_msg,
-            "status": "Resolved" if not sentry_issues else "Investigating",
+            "status": "Resolved" if not failed_runs_details else "Failed",
             "action": "Review the minute-by-minute timeline below to analyze system failures and response times."
         }
     ]
 
-    for issue in sentry_issues[:3]:
-        items.append({
-            "category": "Incident Event",
-            "title": f"Sentry Exception: {issue['title']}",
-            "message": f"Exception culprit: `{issue['culprit']}`.\nProject: `{issue['project_name']}`. Status: `{issue['status']}`. Last Seen: `{issue['last_seen']}`.",
-            "status": "Sentry Alert",
-            "url": issue['permalink'],
-            "action": "Inspect stack trace logs in Sentry."
-        })
-
-    for run in action_runs[:3]:
-        conclusion = run.get("conclusion")
-        if conclusion not in ("success", "skipped", "neutral"):
+    if failed_runs_details:
+        for run in failed_runs_details[:4]:
+            steps_desc = ""
+            if run['failed_steps']:
+                steps_desc = "\n\n**Failed Steps:**\n" + "\n".join([f"* Job **{s['job_name']}** failed on step **{s['step_name']}**" for s in run['failed_steps']])
+            
             items.append({
                 "category": "Incident Event",
-                "title": f"CI/CD Failure: {run.get('name')}",
-                "message": f"Workflow run `{run.get('name')}` failed on branch `{run.get('head_branch')}`. Head commit: `{run.get('head_sha')[:7]}`. Finished: `{run.get('updated_at')}`.",
+                "title": f"CI/CD Crash: {run['name']}",
+                "message": f"Triggered by: **{run['author']}** via commit `{run['commit_sha']}` ('*{run['commit_msg']}*').\n"
+                           f"Started: `{run['created_at']}`. Crashed: `{run['updated_at']}`.{steps_desc}",
                 "status": "CI Failure",
-                "url": run.get("html_url"),
-                "action": "Inspect the failing workflow jobs and run step logs."
+                "url": run['url'],
+                "action": "Inspect the failing workflow jobs and run step logs on GitHub."
             })
+    else:
+        items.append({
+            "category": "Incident Event",
+            "title": "GitHub CI/CD Pipelines Healthy",
+            "message": "All recent workflow action runs completed successfully with no failures. Baseline telemetry is stable.",
+            "status": "Healthy",
+            "action": "View recent workflow runs on GitHub."
+        })
 
-    items.append({
-        "category": "Recommended Action",
-        "title": "Next step",
-        "message": "Verify the stack traces in Sentry and check if the failures match the latest deployed code commits.",
-        "status": "action",
-        "action": "Align oncall developers and review crash impact."
-    })
+    for i in bug_issues[:2]:
+        items.append({
+            "category": "Incident Event",
+            "title": f"Issue #{i.get('number')}: {i.get('title')}",
+            "message": f"Author: **{i.get('user', {}).get('login', 'unknown')}**.\nState: `{i.get('state')}`. Created: `{i.get('created_at')}`.",
+            "status": "Bug Issue",
+            "url": i.get("html_url"),
+            "action": "Review issue comments and related PR fixes."
+        })
 
     return items
 
