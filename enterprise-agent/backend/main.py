@@ -2028,6 +2028,10 @@ def get_status():
     except Exception as e:
         return {"coral_installed": False, "message": str(e)}
 
+@app.get("/healthz")
+def health_check():
+    return {"status": "healthy"}
+
 @app.get("/api/repos")
 def get_user_repos():
     token = CONNECTED_TOKENS.get("github") or os.environ.get("GITHUB_TOKEN")
