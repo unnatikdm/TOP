@@ -27,7 +27,9 @@ import {
   Moon,
   ChevronDown,
   ChevronUp,
-  Loader2
+  Loader2,
+  History,
+  Trash2
 } from 'lucide-react';
 
 const getOutputBreakdown = (message, title, category) => {
@@ -415,6 +417,7 @@ function App() {
     setQueryLoading(true);
     setQueryResults(null);
     setQueryError(null);
+    saveToRepoHistory(paramValue);
 
     let parsedOwner = backendStatus.github_owner || 'open-metadata';
     let parsedRepo = backendStatus.github_repo || 'OpenMetadata';
@@ -541,6 +544,7 @@ function App() {
     setDebugLoading(true);
     setDebugError(null);
     setDebugResults(null);
+    saveToRepoHistory(paramValue);
     setDebugExpandedCards({});
     setDebugSummaries({});
     setDebugSummarizing({});
@@ -657,6 +661,160 @@ function App() {
       sentry_token: connections.sentry || '',
       sentry_org: connections.sentry_org || ''
     };
+  };
+
+  const [repoHistory, setRepoHistory] = useState(() => {
+    try {
+      const saved = localStorage.getItem('coral_repo_history');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+  const [showToolsHistory, setShowToolsHistory] = useState(false);
+  const [showPlaygroundHistory, setShowPlaygroundHistory] = useState(false);
+  const [showDebugHistory, setShowDebugHistory] = useState(false);
+
+  const saveToRepoHistory = (repoValue) => {
+    if (!repoValue || !repoValue.trim()) return;
+    const cleaned = repoValue.trim();
+    if (cleaned === 'https://github.com/open-metadata/OpenMetadata') return; // skip default placeholder
+    
+    let history = [];
+    try {
+      const saved = localStorage.getItem('coral_repo_history');
+      if (saved) {
+        history = JSON.parse(saved);
+      }
+    } catch (e) {
+      history = [];
+    }
+    if (!Array.isArray(history)) history = [];
+    
+    history = [cleaned, ...history.filter(item => item !== cleaned)].slice(0, 10);
+    localStorage.setItem('coral_repo_history', JSON.stringify(history));
+    setRepoHistory(history);
+  };
+
+  const renderHistoryDropdown = (type, onSelect) => {
+    const isVisible = type === 'tools' ? showToolsHistory : type === 'playground' ? showPlaygroundHistory : showDebugHistory;
+    const setVisible = type === 'tools' ? setShowToolsHistory : type === 'playground' ? setShowPlaygroundHistory : setShowDebugHistory;
+    
+    if (!isVisible || repoHistory.length === 0) return null;
+    
+    return (
+      <div 
+        className="history-dropdown"
+        style={{
+          position: 'absolute',
+          top: '100%',
+          left: 0,
+          right: 0,
+          background: 'rgba(30, 41, 59, 0.98)',
+          backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          borderRadius: '8px',
+          marginTop: '6px',
+          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
+          zIndex: 9999,
+          maxHeight: '260px',
+          overflowY: 'auto'
+        }}
+        onMouseDown={(e) => {
+          e.preventDefault();
+        }}
+      >
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '8px 12px',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          fontSize: '10px',
+          fontWeight: '700',
+          color: 'var(--text-dim)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em'
+        }}>
+          <span>Recent Search History</span>
+          <button 
+            onClick={() => {
+              localStorage.setItem('coral_repo_history', '[]');
+              setRepoHistory([]);
+            }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--accent)',
+              fontSize: '10px',
+              fontWeight: '700',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '2px 6px',
+              borderRadius: '4px',
+              transition: 'background 0.2s'
+            }}
+          >
+            <Trash2 size={10} /> Clear All
+          </button>
+        </div>
+        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+          {repoHistory.map((repo, idx) => (
+            <li 
+              key={idx}
+              onClick={() => {
+                onSelect(repo);
+                setVisible(false);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '10px 12px',
+                cursor: 'pointer',
+                borderBottom: idx === repoHistory.length - 1 ? 'none' : '1px solid rgba(255, 255, 255, 0.04)',
+                fontSize: '13px',
+                color: 'rgba(255, 255, 255, 0.9)',
+                transition: 'all 0.15s ease'
+              }}
+              className="history-item"
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+                <History size={14} style={{ color: 'var(--text-dim)', flexShrink: 0 }} />
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {repo}
+                </span>
+              </div>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const updated = repoHistory.filter(item => item !== repo);
+                  localStorage.setItem('coral_repo_history', JSON.stringify(updated));
+                  setRepoHistory(updated);
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-dim)',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  borderRadius: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'color 0.2s'
+                }}
+                className="history-delete"
+              >
+                <Trash2 size={12} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
   };
 
   const [tables, setTables] = useState([]);
@@ -827,6 +985,7 @@ function App() {
     setLoading(true);
     setResults(null);
     setExpandedCards({});
+    saveToRepoHistory(paramValue);
     try {
       let parsedOwner = '';
       let parsedRepo = '';
@@ -2674,13 +2833,18 @@ function App() {
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '8px' }}>
                     {inputConfig[activeTool.id]?.label || inputConfig.default.label}
                   </label>
-                  <input
-                    type="text"
-                    className="input"
-                    value={paramValue}
-                    onChange={(e) => setParamValue(e.target.value)}
-                    placeholder={inputConfig[activeTool.id]?.placeholder || inputConfig.default.placeholder}
-                  />
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="text"
+                      className="input"
+                      value={paramValue}
+                      onChange={(e) => setParamValue(e.target.value)}
+                      onFocus={() => setShowToolsHistory(true)}
+                      onBlur={() => setTimeout(() => setShowToolsHistory(false), 200)}
+                      placeholder={inputConfig[activeTool.id]?.placeholder || inputConfig.default.placeholder}
+                    />
+                    {renderHistoryDropdown('tools', setParamValue)}
+                  </div>
                 </div>
                 <button className="btn btn-primary" onClick={executeTool} disabled={loading}>
                   {loading ? <Loader2 className="spin" size={18} /> : <Play size={18} />}
@@ -3009,14 +3173,19 @@ function App() {
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-dim)', marginBottom: '8px', letterSpacing: '0.05em' }}>
                     🔗 Global Target Parameter URL / Link (GitHub, Discord, etc.)
                   </label>
-                  <input
-                    type="text"
-                    className="input"
-                    value={paramValue}
-                    onChange={(e) => setParamValue(e.target.value)}
-                    placeholder="e.g., https://github.com/owner/repo or topic keyword"
-                    style={{ height: '38px', fontSize: '13px' }}
-                  />
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="text"
+                      className="input"
+                      value={paramValue}
+                      onChange={(e) => setParamValue(e.target.value)}
+                      onFocus={() => setShowPlaygroundHistory(true)}
+                      onBlur={() => setTimeout(() => setShowPlaygroundHistory(false), 200)}
+                      placeholder="e.g., https://github.com/owner/repo or topic keyword"
+                      style={{ height: '38px', fontSize: '13px', width: '100%' }}
+                    />
+                    {renderHistoryDropdown('playground', setParamValue)}
+                  </div>
                 </div>
                 <div style={{ padding: '8px 14px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '6px', border: '1px solid rgba(59, 130, 246, 0.2)', display: 'flex', flexDirection: 'column', gap: '2px', minWidth: '180px', height: '38px', justifyContent: 'center' }}>
                   <span style={{ fontSize: '9px', textTransform: 'uppercase', color: 'var(--accent)', fontWeight: '800', letterSpacing: '0.05em' }}>Active Context Scope</span>
@@ -3385,14 +3554,19 @@ function App() {
                     </div>
                   ) : (
                     <div style={{ display: 'flex', gap: '8px' }}>
-                      <input
-                        type="text"
-                        className="input"
-                        value={paramValue}
-                        onChange={(e) => setParamValue(e.target.value)}
-                        placeholder="e.g., https://github.com/owner/repo or discord/jira link"
-                        style={{ height: '38px', fontSize: '13px', flex: 1 }}
-                      />
+                      <div style={{ position: 'relative', flex: 1 }}>
+                        <input
+                          type="text"
+                          className="input"
+                          value={paramValue}
+                          onChange={(e) => setParamValue(e.target.value)}
+                          onFocus={() => setShowDebugHistory(true)}
+                          onBlur={() => setTimeout(() => setShowDebugHistory(false), 200)}
+                          placeholder="e.g., https://github.com/owner/repo or discord/jira link"
+                          style={{ height: '38px', fontSize: '13px', width: '100%' }}
+                        />
+                        {renderHistoryDropdown('debug', setParamValue)}
+                      </div>
                       <button
                         className="btn btn-secondary"
                         onClick={() => {
