@@ -166,13 +166,12 @@ const formatAsAsciiTable = (data) => {
   }
 
   const headers = Object.keys(data[0]).filter(k => k !== 'url' && k !== 'html_url');
-
   // Calculate column widths
   const widths = {};
   headers.forEach(h => {
     widths[h] = h.length;
   });
-
+  
   data.forEach(row => {
     headers.forEach(h => {
       const val = row[h] !== null && row[h] !== undefined ? String(row[h]) : '';
@@ -181,19 +180,19 @@ const formatAsAsciiTable = (data) => {
       }
     });
   });
-
+  
   // Build top border
   let border = '+';
   headers.forEach(h => {
     border += '-'.repeat(widths[h] + 2) + '+';
   });
-
+  
   // Build header row
   let headerRow = '|';
   headers.forEach(h => {
     headerRow += ' ' + h.padEnd(widths[h]).slice(0, widths[h]) + ' |';
   });
-
+  
   // Build rows
   const rows = [];
   data.forEach(row => {
@@ -207,7 +206,7 @@ const formatAsAsciiTable = (data) => {
     });
     rows.push(rStr);
   });
-
+  
   // Assemble table
   let table = border + '\n' + headerRow + '\n' + border + '\n';
   rows.forEach(r => {
@@ -308,7 +307,7 @@ function App() {
 
     const owner = backendStatus.github_owner || 'unnatikdm';
     const repo = backendStatus.github_repo || 'TOP';
-
+    
     const targetSql = targetSqlTemplate
       .replace(/\{\{OWNER\}\}/g, owner)
       .replace(/\{\{REPO\}\}/g, repo)
@@ -322,7 +321,7 @@ function App() {
       } else {
         clearInterval(interval);
         setTerminalOutput("Compiling Coral query...");
-
+        
         fetch('http://localhost:8000/api/query', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -633,7 +632,7 @@ function App() {
           .replace(/\{\{OWNER\}\}/g, owner)
           .replace(/\{\{REPO\}\}/g, repo);
 
-        fetch('http://localhost:8000/api/query', {
+        fetch('http://127.0.0.1:8000/api/query', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ query: initialSql })
