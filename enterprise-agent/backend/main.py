@@ -11,6 +11,33 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import Dict, Any, List
 import http.client
 
+# Monkeypatch subprocess.run to automatically strip WSL prefixes and resolve the native coral binary when running on Linux/Docker
+_original_subprocess_run = subprocess.run
+def docker_friendly_subprocess_run(cmd_args, *args, **kwargs):
+    if os.name != 'nt' and isinstance(cmd_args, list):
+        # Strip WSL prefix if present
+        if len(cmd_args) >= 4 and cmd_args[0] == "wsl" and cmd_args[1] == "-d" and cmd_args[3] == "--":
+            cmd_args = cmd_args[4:]
+        elif len(cmd_args) >= 5 and cmd_args[0] == "wsl" and cmd_args[1] == "-d" and cmd_args[2] == "Ubuntu-24.04" and cmd_args[3] == "--":
+            cmd_args = cmd_args[4:]
+        
+        # Resiliently handle coral binary path
+        if len(cmd_args) > 0 and cmd_args[0] == "/root/.local/bin/coral":
+            import shutil
+            if not os.path.exists("/root/.local/bin/coral") and shutil.which("coral"):
+                cmd_args[0] = "coral"
+                
+        # Also handle bash -c scripts that reference /root/.local/bin/coral
+        if len(cmd_args) >= 3 and cmd_args[0] == "bash" and cmd_args[1] == "-c":
+            script = cmd_args[2]
+            if "/root/.local/bin/coral" in script:
+                import shutil
+                if not os.path.exists("/root/.local/bin/coral") and shutil.which("coral"):
+                    cmd_args[2] = script.replace("/root/.local/bin/coral", "coral")
+                    
+    return _original_subprocess_run(cmd_args, *args, **kwargs)
+subprocess.run = docker_friendly_subprocess_run
+
 def safe_read(resp):
     try:
         return resp.read()

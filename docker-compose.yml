@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./enterprise-agent
+      dockerfile: backend/Dockerfile
+    container_name: top-backend
+    expose:
+      - "8000"
+    volumes:
+      # Mount a persistent volume to preserve Coral integration secrets and caches
+      - coral-config:/root/.config/coral
+    restart: always
+
+  frontend:
+    build:
+      context: .
+      dockerfile: enterprise-agent/frontend/Dockerfile
+    container_name: top-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: always
+
+volumes:
+  coral-config:
