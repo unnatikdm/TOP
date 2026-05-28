@@ -248,7 +248,11 @@ function App() {
   const [isCustomLink, setIsCustomLink] = useState(false);
 
   useEffect(() => {
-    fetch(`${BACKEND_URL}/api/repos`)
+    const savedGithub = localStorage.getItem('coral_github_token') || '';
+    const reposUrl = savedGithub 
+      ? `${BACKEND_URL}/api/repos?github_token=${encodeURIComponent(savedGithub)}`
+      : `${BACKEND_URL}/api/repos`;
+    fetch(reposUrl)
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {
@@ -324,7 +328,10 @@ function App() {
         fetch(`${BACKEND_URL}/api/query`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query: targetSql })
+          body: JSON.stringify({
+            query: targetSql,
+            ...getConnectionPayload()
+          })
         })
           .then(res => res.json())
           .then(data => {
@@ -437,7 +444,10 @@ function App() {
       const response = await fetch(`${BACKEND_URL}/api/query`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: interpolatedQuery })
+        body: JSON.stringify({
+          query: interpolatedQuery,
+          ...getConnectionPayload()
+        })
       });
       const data = await response.json();
       if (!response.ok) {
@@ -576,7 +586,8 @@ function App() {
           repo: parsedRepo,
           page: page,
           page_size: debugPageSize,
-          source: debugSource
+          source: debugSource,
+          ...getConnectionPayload()
         })
       });
       const data = await response.json();
@@ -635,6 +646,19 @@ function App() {
     };
   });
 
+  const getConnectionPayload = () => {
+    return {
+      github_token: connections.github || '',
+      discord_token: connections.discord || '',
+      discord_guild_id: connections.discord_guild_id || '',
+      jira_token: connections.jira || '',
+      jira_url: connections.jira_url || '',
+      jira_email: connections.jira_email || '',
+      sentry_token: connections.sentry || '',
+      sentry_org: connections.sentry_org || ''
+    };
+  };
+
   const [tables, setTables] = useState([]);
 
   useEffect(() => {
@@ -656,7 +680,10 @@ function App() {
         fetch(`${BACKEND_URL}/api/query`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query: initialSql })
+          body: JSON.stringify({
+            query: initialSql,
+            ...getConnectionPayload()
+          })
         })
           .then(res => res.json())
           .then(queryData => {
@@ -847,7 +874,8 @@ function App() {
             OWNER: parsedOwner,
             REPO: parsedRepo,
             STALE_DAYS: activeTool.id === 'pr_reaper' ? 7 : undefined
-          }
+          },
+          ...getConnectionPayload()
         })
       });
       const data = await response.json().catch(() => ({ message: 'Unable to parse backend response' }));

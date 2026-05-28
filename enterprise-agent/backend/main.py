@@ -192,16 +192,24 @@ def fetch_jira_api(jql: str):
         return []
 
 
+from typing import Optional
+
 class SkillExecutionRequest(BaseModel):
     skill_id: str
     params: Dict[str, Any]
+    github_token: Optional[str] = None
+    jira_token: Optional[str] = None
+    jira_url: Optional[str] = None
+    jira_email: Optional[str] = None
+    sentry_token: Optional[str] = None
+    sentry_org: Optional[str] = None
+    discord_token: Optional[str] = None
+    discord_guild_id: Optional[str] = None
 
 class SummarizeRequest(BaseModel):
     message: str
     title: str = ""
     category: str = ""
-
-from typing import Optional
 
 class SearchRequest(BaseModel):
     query: str
@@ -210,9 +218,43 @@ class SearchRequest(BaseModel):
     page: int = 1
     page_size: int = 20
     source: str = "all"
+    github_token: Optional[str] = None
+    jira_token: Optional[str] = None
+    jira_url: Optional[str] = None
+    jira_email: Optional[str] = None
+    sentry_token: Optional[str] = None
+    sentry_org: Optional[str] = None
+    discord_token: Optional[str] = None
+    discord_guild_id: Optional[str] = None
 
 class QueryRequest(BaseModel):
     query: str
+    github_token: Optional[str] = None
+    jira_token: Optional[str] = None
+    jira_url: Optional[str] = None
+    jira_email: Optional[str] = None
+    sentry_token: Optional[str] = None
+    sentry_org: Optional[str] = None
+    discord_token: Optional[str] = None
+    discord_guild_id: Optional[str] = None
+
+def update_global_tokens(req):
+    if getattr(req, "github_token", None):
+        CONNECTED_TOKENS["github"] = req.github_token
+    if getattr(req, "jira_token", None):
+        CONNECTED_TOKENS["jira"] = req.jira_token
+    if getattr(req, "jira_url", None):
+        CONNECTED_DEFAULTS["jira_url"] = req.jira_url
+    if getattr(req, "jira_email", None):
+        CONNECTED_DEFAULTS["jira_email"] = req.jira_email
+    if getattr(req, "sentry_token", None):
+        CONNECTED_TOKENS["sentry"] = req.sentry_token
+    if getattr(req, "sentry_org", None):
+        CONNECTED_DEFAULTS["sentry_org"] = req.sentry_org
+    if getattr(req, "discord_token", None):
+        CONNECTED_TOKENS["discord"] = req.discord_token
+    if getattr(req, "discord_guild_id", None):
+        CONNECTED_DEFAULTS["discord_guild_id"] = req.discord_guild_id
 
 GITHUB_API_BASE = "https://api.github.com"
 
@@ -2347,6 +2389,7 @@ def list_skills():
 
 @app.post("/api/execute")
 def execute_skill(req: SkillExecutionRequest):
+    update_global_tokens(req)
     if req.skill_id == "failure_hunter":
         return execute_failure_hunter(req.params)
     if req.skill_id == "pr_reaper":
@@ -2393,6 +2436,7 @@ def execute_skill(req: SkillExecutionRequest):
 
 @app.post("/api/query")
 def execute_raw_query(req: QueryRequest):
+    update_global_tokens(req)
     if not req.query.strip():
         raise HTTPException(status_code=400, detail="Query cannot be empty")
     
@@ -2472,6 +2516,7 @@ def heuristic_summarize(message: str) -> str:
 
 @app.post("/api/search")
 def run_semantic_search(req: SearchRequest):
+    update_global_tokens(req)
     query = req.query.strip()
     if not query:
         raise HTTPException(status_code=400, detail="Query cannot be empty")
@@ -2919,8 +2964,10 @@ def health_check():
     return {"status": "healthy"}
 
 @app.get("/api/repos")
-def get_user_repos():
-    token = CONNECTED_TOKENS.get("github") or os.environ.get("GITHUB_TOKEN")
+def get_user_repos(github_token: Optional[str] = None):
+    token = github_token or CONNECTED_TOKENS.get("github") or os.environ.get("GITHUB_TOKEN")
+    if token:
+        CONNECTED_TOKENS["github"] = token
     if not token:
         return [
             {"name": "unnatikdm/TOP", "url": "https://github.com/unnatikdm/TOP"},
@@ -2947,6 +2994,10 @@ from fastapi.responses import HTMLResponse, FileResponse
 
 # Mount React dashboard static assets under /dashboard/assets
 dashboard_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "dashboard"))
+if not os.path.exists(dashboard_dir):
+    # Try workspace root dashboard folder for local development
+    dashboard_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../dashboard"))
+
 if os.path.exists(dashboard_dir):
     from fastapi.staticfiles import StaticFiles
     app.mount("/dashboard/assets", StaticFiles(directory=os.path.join(dashboard_dir, "assets")), name="dashboard-assets")
@@ -2955,7 +3006,7 @@ if os.path.exists(dashboard_dir):
 @app.get("/dashboard", response_class=HTMLResponse)
 @app.get("/dashboard/", response_class=HTMLResponse)
 def serve_dashboard():
-    dashboard_index = os.path.abspath(os.path.join(os.path.dirname(__file__), "dashboard/index.html"))
+    dashboard_index = os.path.abspath(os.path.join(dashboard_dir, "index.html"))
     if os.path.exists(dashboard_index):
         with open(dashboard_index, "r", encoding="utf-8") as f:
             return HTMLResponse(content=f.read())
@@ -2965,7 +3016,7 @@ def serve_dashboard():
 @app.get("/{filename}")
 def serve_root_asset(filename: str):
     # Check if requested file exists in dashboard directory (logos/icons/images are here)
-    asset_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "dashboard", filename))
+    asset_path = os.path.abspath(os.path.join(dashboard_dir, filename))
     if os.path.exists(asset_path):
         return FileResponse(asset_path)
     # Check if requested file exists in backend directory
