@@ -3992,6 +3992,20 @@ function App() {
                     </button>
                   ))}
                 </div>
+
+                <div style={{ marginTop: '16px', padding: '12px', background: 'rgba(52, 211, 153, 0.1)', border: '1px solid rgba(52, 211, 153, 0.3)', borderRadius: '6px' }}>
+                  <p style={{ fontSize: '12px', color: 'var(--text-main)', margin: '0 0 8px 0', fontWeight: 'bold' }}>
+                    <AlertCircle size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '6px' }} />
+                    How to get your API Credentials
+                  </p>
+                  <div style={{ fontSize: '11px', color: 'var(--text-dim)', lineHeight: '1.5', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div><strong>GitHub Token:</strong> Settings &rarr; Developer Settings &rarr; Personal Access Tokens (Tokens (classic)) &rarr; Generate new token (repo scope).</div>
+                    <div><strong>Discord Token:</strong> Open Discord in browser &rarr; Press Ctrl+Shift+I (Dev Tools) &rarr; Network tab &rarr; Type <code>api</code> in filter &rarr; Click any channel &rarr; Find <code>Authorization</code> in Request Headers.</div>
+                    <div><strong>Discord Guild ID:</strong> Discord Settings &rarr; Advanced &rarr; Enable Developer Mode &rarr; Right-click Server icon on left sidebar &rarr; Copy Server ID.</div>
+                    <div><strong>Jira Token:</strong> Account Settings &rarr; Security &rarr; Create and manage API tokens. Base URL is your workspace (e.g. <code>https://your-domain.atlassian.net</code>).</div>
+                    <div><strong>Sentry Token:</strong> User Settings &rarr; API &rarr; Auth Tokens &rarr; Create New Token. Org Slug is the org name in your URL (e.g. <code>sentry.io/organizations/your-org-slug/</code>).</div>
+                  </div>
+                </div>
               </div>
 
               {/* Card 4: Cache Systems Control */}
