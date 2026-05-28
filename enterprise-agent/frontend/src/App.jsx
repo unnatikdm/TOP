@@ -2331,6 +2331,29 @@ function App() {
       )}
 
       <main className="main-content" style={{ padding: isLanding ? '0' : '40px' }}>
+        {!isLanding && !backendStatus.coral_installed && (
+          <div style={{
+            background: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid rgba(239, 68, 68, 0.2)',
+            borderRadius: '12px',
+            padding: '16px 20px',
+            marginBottom: '28px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '14px',
+            color: '#fca5a5',
+            fontSize: '13px',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+            backdropFilter: 'blur(8px)',
+            fontFamily: "'Inter', sans-serif"
+          }}>
+            <AlertCircle size={20} style={{ color: 'var(--danger)', flexShrink: 0 }} />
+            <div style={{ lineHeight: '1.5' }}>
+              <strong style={{ color: '#fff', fontSize: '14px' }}>Local Backend Offline:</strong> The cloud portal cannot connect to your local Coral engine. 
+              Please ensure your backend server is running locally (run <code>run_all.bat</code> in the enterprise-agent directory) to analyze WSL telemetry.
+            </div>
+          </div>
+        )}
         {view === 'landing' ? (
           <div className="landing-scope">
             {/* Ambient Glow */}
