@@ -4026,7 +4026,7 @@ function App() {
               </div>
 
               {/* Card 4: Cache Systems Control */}
-              <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '16px', justifyContent: 'space-between' }}>
+              <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '16px', justifyContent: 'space-between', minHeight: '340px' }}>
                 <div>
                   <h3 style={{ fontSize: '15px', fontWeight: '700', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     WSL Coral Performance Cache
@@ -4034,6 +4034,36 @@ function App() {
                   <p style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>
                     Coral automatically caches heavy SQL evaluations. Monitor or clear lookups here.
                   </p>
+                </div>
+
+                {/* Recent Query Execution History list */}
+                <div style={{ flex: 1, minHeight: '150px', overflowY: 'auto', margin: '4px 0', border: '1px solid var(--border)', borderRadius: '6px', padding: '12px', background: 'rgba(0, 0, 0, 0.15)' }}>
+                  <span style={{ fontSize: '10px', color: 'var(--text-dim)', fontWeight: '700', textTransform: 'uppercase', display: 'block', marginBottom: '8px', letterSpacing: '0.05em' }}>
+                    Recent Query Execution History
+                  </span>
+                  {queryHistory.length === 0 ? (
+                    <div style={{ color: 'var(--text-dim)', fontSize: '12px', textAlign: 'center', padding: '30px' }}>
+                      No query history yet. Run a query in the playground.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {queryHistory.slice(0, 5).map((hist, i) => (
+                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', padding: '8px 10px', background: 'var(--bg-input)', borderRadius: '6px', border: '1px solid var(--border)', transition: 'background 0.2s' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0, flex: 1, marginRight: '12px' }}>
+                            <span style={{ fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-main)', fontWeight: '600', fontSize: '11px' }}>
+                              {hist.query}
+                            </span>
+                            <span style={{ fontSize: '9px', color: 'var(--text-dim)' }}>
+                              {new Date(hist.timestamp).toLocaleString()} • {hist.rows} rows
+                            </span>
+                          </div>
+                          <span style={{ fontSize: '9px', fontWeight: '800', padding: '2px 6px', borderRadius: '4px', background: hist.status === 'Success' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: hist.status === 'Success' ? '#22c55e' : '#ef4444', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            {hist.status}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div style={{ display: 'flex', justifyBehavior: 'space-between', justifyContent: 'space-between', alignItems: 'center', padding: '16px', background: 'var(--bg-input)', borderRadius: '8px', border: '1px solid var(--border)' }}>
